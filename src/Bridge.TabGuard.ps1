@@ -70,5 +70,4 @@ function Assert-BridgeTabStable {
     if (-not (Test-BridgeTabSnapshotStable -Before $Baseline -After $now)) {
         Stop-Bridge 'TAB_CHANGED' $Stage
     }
-    $script:result.TabSelectionStable = $true
 }
