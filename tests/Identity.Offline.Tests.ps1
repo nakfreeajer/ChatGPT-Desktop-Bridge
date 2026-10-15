@@ -31,7 +31,7 @@ Assert-BridgeTest (-not (Test-BridgeConversationId 'not-a-chat-id')) 'invalid ID
 Assert-BridgeTest (-not (Test-BridgeConversationId ($id + '/extra'))) 'ID with suffix rejected'
 Assert-BridgeTest ((Get-BridgeConversationIdFromUrl $url) -eq $id) 'valid URL parsed'
 Assert-BridgeTest ((Get-BridgeConversationIdFromUrl ($url + '?view=1')) -eq $id) 'query accepted'
-Assert-BridgeTest ($null -eq (Get-BridgeConversationIdFromUrl 'https://attacker.example/c/' + $id)) 'foreign host rejected'
+Assert-BridgeTest ($null -eq (Get-BridgeConversationIdFromUrl ('https://attacker.example/c/' + $id))) 'foreign host rejected'
 Assert-BridgeTest ($null -eq (Get-BridgeConversationIdFromUrl 'https://chatgpt.com/share/' + $id)) 'share URL rejected'
 Assert-BridgeTest ($null -eq (Get-BridgeConversationIdFromUrl ('https://chatgpt.com/c/' + $id + 'f'))) 'extra ID character rejected'
 Assert-BridgeTest (Test-BridgeHomeAddress 'chatgpt.com') 'shortened home address'
