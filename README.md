@@ -1,6 +1,6 @@
 # ChatGPT Desktop Bridge
 
-**Status:** Experimental proof of concept; **BRIDGE.M02-A source committed but not runtime-qualified**.  
+**Status:** Experimental proof of concept; M02-A controlled navigation PASS (human-run); M02-C selected-tab safety source committed, Windows qualification pending.  
 **Scope:** Lightweight Windows UI Automation (UIA) adapter for interacting with existing ChatGPT Desktop conversations, without Chrome DevTools Protocol (CDP) or the OpenAI API.  
 **Evidence date:** 2026-10-15.  
 **Platform observed:** Windows; ChatGPT Desktop using a Chromium/WebView2-based accessibility tree.
@@ -40,7 +40,7 @@ The repository was empty before this documentation initialization. The findings 
 
 The new Windows PowerShell 5.1 prototype lives in [src/Bridge.Navigate.ps1](src/Bridge.Navigate.ps1), with [side-effect-free identity helpers](src/Bridge.Identity.ps1) and [offline syntax/identity regression tests](tests/Identity.Offline.Tests.ps1).
 
-**This is not a production integration.** Code has been committed but has **not** been run or qualified against a Windows ChatGPT Desktop session from this repository. It uses the experimentally observed embedded-browser UIA controls and returns JSON status data without printing any conversation URL/ID or message text.
+**This is not a production integration.** Human-run Windows tests confirmed M02-A inspection-only mismatch rejection and controlled home-to-CDLD navigation with post-navigation URL/editor verification. Those tests did not qualify unattended navigation. It uses the experimentally observed embedded-browser UIA controls and returns JSON status data without printing any conversation URL/ID or message text.
 
 From the repository root in Windows PowerShell 5.1:
 
@@ -59,6 +59,20 @@ From the repository root in Windows PowerShell 5.1:
 
 Navigation deliberately refuses to leave a different conversation unless the embedded browser is at the ChatGPT home screen. The browser must already be open. All ambiguous windows, address bars, suggestions, destination URLs, or editor candidates must fail closed. The returned `VERIFIED_BROWSER_ROUTE` status means **only** the embedded-browser URL and a candidate editor/document were verified; it does not verify the separate main Desktop conversation, nor prove server acknowledgement or safe unattended send. There is **no message-sending function** in this prototype.
 
+## Selected-tab stability guard — BRIDGE.M02-C
+
+The navigation prototype now loads [src/Bridge.TabGuard.ps1](src/Bridge.TabGuard.ps1) and requires **exactly one visible selected browser tab** in the region above the browser address bar. It captures the tab's UIA RuntimeId **as an ephemeral within-run token only**, not a persistent conversation ID. It fails closed when tab discovery is unavailable, selection ambiguous or unsupported, or the selected tab/tab count changes between checks. This check occurs before URL injection, during suggestion verification, immediately before Enter, and throughout destination verification.
+
+The added [tests/TabGuard.Offline.Tests.ps1](tests/TabGuard.Offline.Tests.ps1) covers syntax, tab snapshots and critical call sites. Run:
+
+~~~powershell
+git pull origin main
+.\tests\Identity.Offline.Tests.ps1
+.\tests\TabGuard.Offline.Tests.ps1
+~~~
+
+**M02-C has not yet been qualified on the user's Windows machine.** An offline source commit or unit test does not establish live compatibility. The guard reduces accidental wrong-tab targeting but cannot eliminate a time-of-check/time-of-use keyboard focus race, and it does not bind the main Desktop panel to a durable conversation ID.
+
 ## Release status
 
-**M00 documentation and M02-A experimental navigation-only prototype.** No background service, installer, message delivery, integration, or production release is included. Milestones are proposed unless explicitly recorded as approved, and prior experimental PASS results are not production acceptance results.
+**M00 documentation, M02-A controlled navigation experiment and M02-C unqualified selected-tab guard.** No background service, installer, message delivery, integration, or production release is included. Milestones are proposed unless explicitly recorded as approved, and prior experimental PASS results are not production acceptance results.
