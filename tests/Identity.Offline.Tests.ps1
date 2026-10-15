@@ -12,7 +12,7 @@ foreach ($file in $files) {
     $tokens = $null
     $parseErrors = $null
     [void][System.Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$parseErrors)
-    if (@($parseErrors).Count -ne 0) {
+    if ($null -ne $parseErrors -and @($parseErrors).Count -gt 0) {
         throw ('PARSE_FAILED: ' + (Split-Path $file -Leaf))
     }
     $checks++
