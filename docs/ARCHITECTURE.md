@@ -70,3 +70,11 @@ Observed in M02-B: the embedded browser exposes visible `TabItem` controls and `
 M02-C requires one selected tab near the embedded-browser address-bar region and uses that selected tab's ephemeral UIA RuntimeId plus visible tab count as a within-run snapshot. Re-query at every critical navigation boundary. It does **not** persist that ID or equate a browser tab with the main Desktop conversation.
 
 After any ambiguous selection, vanished tab, altered tab count, unsupported selection pattern, or changed RuntimeId, the operation returns a fail-closed status. Global `SendKeys('{ENTER}')` still has a residual focus race even with these checks. The selected-tab guard does not solve durable conversation binding, session/window discovery, or server-confirmed message delivery.
+
+## M02-D.13 integration experiment — menu-to-ID, not permanent binding
+
+The owner observed the ARM sidebar three-dot menu exposing a unique `Open on chatgpt.com` MenuItem with InvokePattern, and its owning `Chat actions` button exposing ExpandCollapsePattern. Invoking the UIA menu action was followed by a successful check that the selected embedded-browser URL matched a previously captured ARM ID.
+
+`Bridge.Resolve.ps1` encodes a bounded version with explicit `-OpenInBrowser` opt-in. It first checks the large main `RootWebArea` document has the exact expected display title and there is exactly one visible sidebar ListItem with that exact title and one `Chat actions` control. It can stop there without mutation. When opted in, it takes an optional baseline of the selected embedded-browser tab and ID, refuses an already-matching baseline, expands the correct menu, invokes the unique menu item, and verifies a selected browser tab's expected URL ID, document title/region, and stable tab selection.
+
+A browser may add a tab, reuse the selected tab, activate an existing tab, or open for the first time. The script reports the observed transition rather than assuming a particular case. The resulting `MENU_TO_BROWSER_ID_VERIFIED` is only a controlled correlation for the supplied title and expected ID. `MainDesktopBound=false` remains because duplicate/renamed chat titles, independent windows, long-term ID stability and lifecycle races remain unresolved.
