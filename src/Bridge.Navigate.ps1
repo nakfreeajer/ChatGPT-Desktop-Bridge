@@ -1,4 +1,4 @@
-# BRIDGE.M02-A: experimental, navigation-only ChatGPT Desktop embedded-browser prototype.
+# BRIDGE.M02-C: experimental navigation-only prototype with selected-tab stability guard.
 # Windows PowerShell 5.1. No chat composer modifications, button sends, or OpenAI API/CDP.
 # Observe:  .\src\Bridge.Navigate.ps1 -ConversationId <id>
 # Navigate: .\src\Bridge.Navigate.ps1 -ConversationId <id> -Navigate -AcceptKeyboardRisk
@@ -14,14 +14,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Bridge.Identity.ps1')
+. (Join-Path $PSScriptRoot 'Bridge.TabGuard.ps1')
 
 $result = [ordered]@{
-    Milestone           = 'BRIDGE.M02-A'
+    Milestone           = 'BRIDGE.M02-C'
     Status              = 'UNVERIFIED'
     Stage               = 'PREFLIGHT'
     NavigationAttempted = $false
     UrlIdentityVerified = $false
     EditorVerified      = $false
+    SelectedTabVerified = $false
+    TabSelectionStable  = $false
+    VisibleBrowserTabs  = 0
     MainDesktopBound    = $false
     ComposerWriteAttempted = $false
     ChatSendButtonInvoked  = $false
@@ -158,7 +162,12 @@ try {
 
     $result.Stage = 'CURRENT_URL'
     $bar = Get-BridgeAddressBar $handle
+    $tabBaseline = Get-BridgeSelectedBrowserTab -Handle $handle -Bar $bar -Stage 'TAB_BASELINE'
+    if ($tabBaseline.Status -ne 'OK') { Stop-Bridge $tabBaseline.Status 'TAB_BASELINE' }
+    $result.SelectedTabVerified = $true
+    $result.VisibleBrowserTabs = $tabBaseline.VisibleCount
     $currentUrl = Read-BridgeAddress $bar
+    Assert-BridgeTabStable -Handle $handle -Bar $bar -Baseline $tabBaseline -Stage 'CURRENT_URL'
     $currentId = Get-BridgeConversationIdFromUrl $currentUrl
 
     if ($null -ne $currentId -and $currentId -eq $expectedId) {
@@ -171,6 +180,7 @@ try {
             Stop-Bridge 'START_PAGE_NOT_HOME' 'CURRENT_URL'
         }
         $result.Stage = 'INJECT_URL'
+        Assert-BridgeTabStable -Handle $handle -Bar $bar -Baseline $tabBaseline -Stage 'INJECT_URL'
         $pattern = $bar.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern)
         if ($pattern.Current.IsReadOnly) { Stop-Bridge 'ADDRESS_BAR_READ_ONLY' 'INJECT_URL' }
         if (-not $bar.Current.HasKeyboardFocus) { Stop-Bridge 'ADDRESS_BAR_NOT_FOCUSED' 'INJECT_URL' }
@@ -183,6 +193,7 @@ try {
             if ([BridgeWindowApiM02A]::GetForegroundWindow() -ne $handle) {
                 Stop-Bridge 'FOREGROUND_LOST' 'SUGGESTION'
             }
+            Assert-BridgeTabStable -Handle $handle -Bar $bar -Baseline $tabBaseline -Stage 'SUGGESTION'
             try {
                 if (Assert-BridgeSuggestion -Handle $handle -Bar $bar -ExpectedUrl $targetUrl) {
                     $verified = $true
@@ -196,6 +207,7 @@ try {
         # Global key injection is experimental and limited to this explicitly opted-in navigation.
         # A focus change between this check and SendWait remains a known residual risk.
         $result.Stage = 'ACTIVATE_SUGGESTION'
+        Assert-BridgeTabStable -Handle $handle -Bar $bar -Baseline $tabBaseline -Stage 'ACTIVATE_SUGGESTION'
         if ([BridgeWindowApiM02A]::GetForegroundWindow() -ne $handle -or
             -not (Assert-BridgeSuggestion -Handle $handle -Bar $bar -ExpectedUrl $targetUrl)) {
             Stop-Bridge 'FOCUS_CHANGED' 'ACTIVATE_SUGGESTION'
@@ -212,18 +224,23 @@ try {
         Start-Sleep -Milliseconds 350
         try {
             $bar = Get-BridgeAddressBar $handle
+            Assert-BridgeTabStable -Handle $handle -Bar $bar -Baseline $tabBaseline -Stage 'VERIFY_LOADED_BROWSER'
             $url = Read-BridgeAddress $bar
+            Assert-BridgeTabStable -Handle $handle -Bar $bar -Baseline $tabBaseline -Stage 'VERIFY_LOADED_BROWSER'
             $id = Get-BridgeConversationIdFromUrl $url
             if ($null -ne $id -and $id -eq $expectedId) {
                 $verifiedUrl = $true
                 $verifiedEditor = Test-BridgeBrowserEditor -Handle $handle -Bar $bar
-                if ($verifiedEditor) { break }
+                if ($verifiedEditor) {
+                    Assert-BridgeTabStable -Handle $handle -Bar $bar -Baseline $tabBaseline -Stage 'VERIFY_LOADED_BROWSER'
+                    break
+                }
             } elseif ($Navigate -and $result.NavigationAttempted -and
                 -not (Test-BridgeHomeAddress $url)) {
                 Stop-Bridge 'IDENTITY_MISMATCH_AFTER_NAVIGATION' 'VERIFY_LOADED_BROWSER'
             }
         } catch {
-            if ($result.Status -eq 'IDENTITY_MISMATCH_AFTER_NAVIGATION') { throw }
+            if ($result.Status -ne 'UNVERIFIED') { throw }
             # Transient UIA changes during navigation must not be mistaken for verified success.
         }
     } while ($timer.Elapsed.TotalSeconds -lt $TimeoutSeconds)
@@ -232,6 +249,8 @@ try {
     $result.EditorVerified = $verifiedEditor
     if (-not $verifiedUrl) { Stop-Bridge 'NAVIGATION_UNCONFIRMED' 'VERIFY_LOADED_BROWSER' }
     if (-not $verifiedEditor) { Stop-Bridge 'EDITOR_NOT_VERIFIED' 'VERIFY_LOADED_BROWSER' }
+    Assert-BridgeTabStable -Handle $handle -Bar $bar -Baseline $tabBaseline -Stage 'FINAL_TAB_CHECK'
+    $result.TabSelectionStable = $true
     $result.Status = 'VERIFIED_BROWSER_ROUTE'
     $result.Stage = 'COMPLETE'
 } catch {
