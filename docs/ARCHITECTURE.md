@@ -1,4 +1,4 @@
-# Proposed architecture (not implemented)
+# Architecture and experimental browser-route prototype
 
 ## Design goal
 
@@ -48,6 +48,16 @@ No blind resubmission after `UI_ACTION_ATTEMPTED_UNCONFIRMED`; caller must recon
 ## Scope enforcement
 
 Authorization and workflow decisions remain with the external Orchestrator. Artifact Relay Manager remains responsible for artifact monitoring. Desktop Bridge only performs verified, explicitly authorized transport actions and returns honest status.
+
+## Implemented prototype boundary — M02-A (not yet runtime-qualified)
+
+`src/Bridge.Navigate.ps1` implements a **browser-only** route-checking experiment using Windows PowerShell 5.1 and UIA. The script defaults to inspection; `-Navigate -AcceptKeyboardRisk` is required to insert an expected URL and use Enter on a verified focused Chromium autocomplete ListItem. That combination is not race-free: focus can change immediately before global SendKeys.
+
+The browser route must start from home if not already on the target. Source only: no live Windows qualification was conducted when committing this implementation. After navigation, the script reacquires the address control, focuses it, verifies `https://chatgpt.com/c/<expected-id>`, and requires exactly one plausible enabled editor beneath the browser address region with a RootWebArea Document ancestor. Geometry is supporting evidence only.
+
+The return value is one JSON object with `Status`, `Stage`, `NavigationAttempted`, `UrlIdentityVerified`, `EditorVerified`, `MainDesktopBound=false` and `MessageSent=false`. No chat composer is written to; no Send button is exposed or invoked.
+
+This does **not** implement the previously proposed automatic binding from the main Desktop sidebar selection to the browser URL. Browser-only and main Desktop modes must not be conflated.
 
 ## Release gate
 
