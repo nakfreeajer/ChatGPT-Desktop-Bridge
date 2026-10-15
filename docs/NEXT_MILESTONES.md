@@ -1,12 +1,12 @@
 # Next milestones and decision gates
 
-**Date:** 2026-10-15. **Authority:** owner approved **documentation-only repository initialization**. This approval does **not** approve implementation, live sends, app/system changes, credentials, CDP, or production integration.
+**Initial evidence date:** 2026-10-15. **Updated:** 2026-10-16. **Authority:** owner approved M00 documentation and separately approved **BRIDGE.M02-A navigation-only implementation**. No message insertion/submission, unattended release, other-repository changes, credentials, CDP or API integration is approved.
 
 | Milestone | Current status | Scope / exit condition |
 |---|---|---|
 | BRIDGE.M00 — Preserve findings | COMPLETE — documentation-only bootstrap committed and GitHub file listing verified on 2026-10-15 | Store project objective, tested findings, corrected diagnostic reference, limits, and roadmap |
-| BRIDGE.M01 — Stable identity | Partial experimental progress | UIA native metadata not found; focused embedded-browser URL extraction and known-ID comparison passed; **automatic sidebar-to-ID binding unresolved** |
-| BRIDGE.M02 — Verified selection | Proposed, not approved | Select intended conversation and prove it matches expected durable ID, including negative cases |
+| BRIDGE.M01 — Stable identity | Browser-route experiments PASS (2026-10-16); native Desktop binding unresolved | URL extraction, URL injection, focused suggestion + Enter navigation (human-observed), post-navigation expected URL check, and editor's RootWebArea ancestry were demonstrated. These findings apply to the **embedded browser** only |
+| BRIDGE.M02-A — Navigation-only prototype | Source committed; Windows qualification PENDING | Accept expected UUID, optional home-to-conversation browser navigation, verify browser URL + document/editor candidate, return JSON codes. No sends or main-Desktop-to-ID binding |
 | BRIDGE.M03 — Guarded delivery | Proposed, not approved | Authorized disposable-target send only after identity gate qualified |
 | BRIDGE.M04 — Results / duplicates | Proposed, not approved | Defined acknowledgement levels, request IDs, idempotency and ambiguous-outcome recovery |
 | BRIDGE.M05 — Lifecycle qualification | Proposed, not approved | App restarts, updates, multiple windows, locked session, renamed/missing targets |
@@ -26,12 +26,13 @@ Start with evidence design, not a coding sprint. Desired negative tests include:
 
 ## Decision register
 
-- **Approved:** M00 documentation-only repository bootstrap, on 2026-10-15.
-- **Not approved:** executable automation implementation, automatic message submission, background monitoring, other-repository changes, provisioning, security-setting changes.
+- **Approved:** M00 documentation-only bootstrap (2026-10-15); M02-A **navigation-only** prototype source implementation (2026-10-16).
+- **Not approved:** automatic message submission, full production routing, background monitoring, other-repository changes, provisioning, or security-setting changes.
+- **Validation needed:** Windows PowerShell parser/offline tests and controlled actual navigation before marking M02-A runtime PASS; do not infer this from source commit.
 - **Blocking for production:** automatic durable target binding, ambiguity/race controls, delivery-result semantics, duplicate protection, lifecycle tests.
 
 ## Next human/Architect checkpoint
 
-1. Review the committed docs for fidelity to the handover and the reported 2026-10-15 PowerShell outputs.
-2. Confirm intended disposable conversation and identity-binding test design.
-3. Request bounded authorization before any fresh interactive experiment or source-code implementation.
+1. Run `tests/Identity.Offline.Tests.ps1` on Windows PowerShell 5.1 and report actual result.
+2. Review and perform one authorized navigation-only qualification from ChatGPT home with empty drafts; capture JSON status and visually verify the embedded browser destination.
+3. Preserve the main Desktop vs. embedded-browser identity distinction. Do not initiate any message-sending implementation without separate approval.
