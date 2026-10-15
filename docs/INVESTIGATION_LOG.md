@@ -78,3 +78,18 @@ Owner separately approved navigation-only implementation. Repository now contain
 ## M02-C source update (2026-10-16)
 
 Added a read-only selected-tab stability gate to the navigation-only prototype. It rejects ambiguity and changed ephemeral selected-tab RuntimeId/tab count across navigation. Added negative offline snapshot tests. **Source committed; offline tests and Windows live qualification have not been reported by the human.**
+
+## M02-C controlled qualification and M02-D manual probes (2026-10-16)
+
+- M02-C user reported 18/18 identity and 20/20 tab-guard offline assertions PASS.
+- M02-C live single-tab wrong-ID inspection returned `IDENTITY_MISMATCH`, `NavigationAttempted=false`; actual visible tab count 1 because the second tab had been closed.
+- M02-C single-tab CDLD positive inspection returned `VERIFIED_BROWSER_ROUTE`, `SelectedTabVerified=true`, `TabSelectionStable=true`, `VisibleBrowserTabs=1`.
+- M02-C controlled home-to-CDLD navigation returned `VERIFIED_BROWSER_ROUTE`, `NavigationAttempted=true`, stable tab and URL/editor identity. Two-tab blank-selected inspection returned `IDENTITY_MISMATCH`, `VisibleBrowserTabs=2`, no navigation.
+- M02-D in ARM: manual `Open on chatgpt.com` exposed a selected embedded browser conversation URL of length 58 and both ARM main/browser documents. User captured ARM ID privately in PowerShell, then opened CDLD in browser while ARM remained the main document. Browser identity check against ARM baseline rejected it with `IDENTITY_MISMATCH`.
+- User manually reopened ARM via its sidebar menu: browser identity matched private ARM baseline, two tabs visible.
+- UIA discovery of the ARM sidebar `Chat actions` control showed ExpandCollapsePattern supported; automated `Expand()` produced `Expanded` and exactly one visible `Open on chatgpt.com` MenuItem. InvokePattern for that unique menu item was exercised with `MENU_ITEM_INVOKED`, followed by a browser ID check matching ARM baseline. The menu-item invocation experiment reports no messaging. Whether it created a new tab or activated an existing tab was not conclusively stated by the user.
+- **Important:** This is a controlled title-anchored menu-to-ID correlation, not a general durable main-Desktop identity binding.
+
+## M02-D.13 repository change (2026-10-16)
+
+Added `src/Bridge.Resolve.ps1` plus `src/Bridge.Resolve.Helpers.ps1` and `tests/Resolve.Offline.Tests.ps1`. The default is preflight only; `-OpenInBrowser` explicitly invokes the sidebar menu item. The script verifies main document/title, unique sidebar action and menu item, expected browser conversation ID, browser document, tab identity, and tab-transition category. It cannot submit chat messages. **No Windows offline or runtime test results have yet been received for M02-D.13.**
