@@ -23,7 +23,9 @@ $result = [ordered]@{
     UrlIdentityVerified = $false
     EditorVerified      = $false
     MainDesktopBound    = $false
-    MessageSent         = $false
+    ComposerWriteAttempted = $false
+    ChatSendButtonInvoked  = $false
+    MessageDeliveryStatus = 'NOT_ASSESSED'
 }
 function Stop-Bridge {
     param([string]$Code,[string]$At)
