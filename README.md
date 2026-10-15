@@ -1,6 +1,6 @@
 # ChatGPT Desktop Bridge
 
-**Status:** Experimental proof of concept; **not production-qualified**.  
+**Status:** Experimental proof of concept; **BRIDGE.M02-A source committed but not runtime-qualified**.  
 **Scope:** Lightweight Windows UI Automation (UIA) adapter for interacting with existing ChatGPT Desktop conversations, without Chrome DevTools Protocol (CDP) or the OpenAI API.  
 **Evidence date:** 2026-10-15.  
 **Platform observed:** Windows; ChatGPT Desktop using a Chromium/WebView2-based accessibility tree.
@@ -36,6 +36,29 @@ The repository was empty before this documentation initialization. The findings 
 - No CDP ports, OpenAI API dependency, workflow orchestration, Drive polling, or credential-handling built into this component.
 - Do not silently retry a send after an uncertain outcome.
 
+## Navigation-only prototype — BRIDGE.M02-A
+
+The new Windows PowerShell 5.1 prototype lives in [src/Bridge.Navigate.ps1](src/Bridge.Navigate.ps1), with [side-effect-free identity helpers](src/Bridge.Identity.ps1) and [offline syntax/identity regression tests](tests/Identity.Offline.Tests.ps1).
+
+**This is not a production integration.** Code has been committed but has **not** been run or qualified against a Windows ChatGPT Desktop session from this repository. It uses the experimentally observed embedded-browser UIA controls and returns JSON status data without printing any conversation URL/ID or message text.
+
+From the repository root in Windows PowerShell 5.1:
+
+~~~powershell
+# Observe/verify only: may change address-bar keyboard focus but does not navigate.
+.\src\Bridge.Navigate.ps1 -ConversationId '<EXPECTED-CONVERSATION-UUID>'
+
+# Explicitly opt in to navigation by focused autocomplete suggestion + Enter.
+# CAUTION: global keyboard input has a residual focus race; use only in a controlled test
+# session with empty drafts in both composers.
+.\src\Bridge.Navigate.ps1 -ConversationId '<EXPECTED-CONVERSATION-UUID>' -Navigate -AcceptKeyboardRisk
+
+# Offline tests: code parser checks and identity-validation regressions, no UI automation.
+.\tests\Identity.Offline.Tests.ps1
+~~~
+
+Navigation deliberately refuses to leave a different conversation unless the embedded browser is at the ChatGPT home screen. The browser must already be open. All ambiguous windows, address bars, suggestions, destination URLs, or editor candidates must fail closed. The returned `VERIFIED_BROWSER_ROUTE` status means **only** the embedded-browser URL and a candidate editor/document were verified; it does not verify the separate main Desktop conversation, nor prove server acknowledgement or safe unattended send. There is **no message-sending function** in this prototype.
+
 ## Release status
 
-**Documentation-only bootstrap.** No executable Bridge code, background service, installer, integration, or release is included. Milestones are proposed unless explicitly recorded as approved, and prior experimental PASS results are not production acceptance results.
+**M00 documentation and M02-A experimental navigation-only prototype.** No background service, installer, message delivery, integration, or production release is included. Milestones are proposed unless explicitly recorded as approved, and prior experimental PASS results are not production acceptance results.
