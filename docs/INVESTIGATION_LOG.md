@@ -52,3 +52,16 @@ These were proof-of-concept tests, not unattended reliability or production rout
 ## Unresolved
 
 Automatic ID-to-sidebar binding, duplicate titles, multiple windows, selection/read race, application restarts, lifecycle robustness, locked Windows session, safe delivery acknowledgement, idempotency, unattended reliability, and supported integration/terms status.
+
+## M01-H through M01-J — subsequent human-run diagnostics, 2026-10-16
+
+1. **Navigation experiment initial attempts:** UIA `ValuePattern.SetValue()` populated a target conversation URL, but did not itself navigate. Focus moved from the address ComboBox to an autocomplete ListItem after approximately 300ms. Attempts requiring the ComboBox to retain focus correctly stopped before Enter.
+2. **Focused suggestion:** A ListItem adjacent to the address bar exposed a name containing the expected URL and supported InvokePattern/SelectionItemPattern/ScrollItemPattern. Invoking this ListItem through InvokePattern did **not** navigate; the embedded browser remained at home.
+3. **Foreground activation:** `SetForegroundWindow()` successfully brought ChatGPT Desktop to the foreground. A later controlled attempt inserted the target URL, verified the autocomplete ListItem and stable focus, and sent Enter automatically. The human visually confirmed that the embedded browser then loaded the expected conversation without manual intervention. **M01-H experimental navigation PASS**, not production qualification.
+4. **Independent post-navigation identity check:** The focused browser address bar yielded a 58-character conversation URL; extracted identifier matched expected ID; the geometry check found one browser-editor candidate. **M01-I URL identity check PASS.**
+5. **Editor/document ancestry:** The detected enabled, focusable browser editor had a Document ancestor at depth 23 with `AutomationId=RootWebArea`; its document name contained the human-known conversation title; ValuePattern and TextPattern supported. **M01-J structural discovery PASS.**
+6. **Remaining:** Browser route is **not** immutable binding to the separate main Desktop conversation. UIA and SendKeys focus races remain; no automated qualification has established reliable navigation across multiple app versions or lifecycles.
+
+## M02-A prototype source, 2026-10-16
+
+Owner separately approved navigation-only implementation. Repository now contains `src/Bridge.Navigate.ps1`, `src/Bridge.Identity.ps1`, and `tests/Identity.Offline.Tests.ps1`. These are **committed source and proposed offline checks**, not a claim that Windows runtime or offline tests have been executed. Message insertion/submission remains disabled and unapproved.
