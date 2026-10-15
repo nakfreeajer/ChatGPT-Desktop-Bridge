@@ -38,3 +38,11 @@ Experimental UI Automation research on a live Windows desktop session; **not an 
 ## Operating principle
 
 **Prefer a visible failure over a wrong-destination send.** Preserve evidence but do not inflate experimental PASS into production readiness.
+
+## M02-A implementation-specific qualifications (2026-10-16)
+
+- The navigation-only prototype requires explicit `-Navigate -AcceptKeyboardRisk` opt-in. Its default invocation does not navigate or write any URL, but may change focus to read the complete address.
+- To navigate, it uses `SendKeys('{ENTER}')` only while a focused, visible ListItem matches the expected target URL and adjacent address control, and only with a verified foreground window. **This is still vulnerable to time-of-check/time-of-use focus races.**
+- Before any controlled test, both message composers must have empty drafts; never run an unqualified keyboard-navigation prototype unattended or against valuable unsent content.
+- A successful `VERIFIED_BROWSER_ROUTE` means the **embedded browser** URL and a candidate document/editor were observed; it is not a server acknowledgement, a full page-readiness proof, or a guarantee about the separate main Desktop panel.
+- No messaging capability is implemented, and runtime qualification remains pending. No sensitive IDs should be committed to the public repo or printed as logs.
