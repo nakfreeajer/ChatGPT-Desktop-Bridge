@@ -41,7 +41,7 @@ function Get-BridgeAddressBar {
     param([IntPtr]$Handle)
     $root = [System.Windows.Automation.AutomationElement]::FromHandle($Handle)
     if ($null -eq $root) { Stop-Bridge 'WINDOW_UNAVAILABLE' 'ADDRESS_BAR' }
-    $cond = New-Object System.Windows.Automation.PropertyCondition(
+    $cond = [System.Windows.Automation.PropertyCondition]::new(
         [System.Windows.Automation.AutomationElement]::NameProperty, 'Search or enter a URL'
     )
     $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,$cond)
@@ -67,7 +67,7 @@ function Test-BridgeBrowserEditor {
     # Geometry is a discovery hint only; a Document ancestor is also required.
     $br = $Bar.Current.BoundingRectangle
     $root = [System.Windows.Automation.AutomationElement]::FromHandle($Handle)
-    $condition = New-Object System.Windows.Automation.PropertyCondition(
+    $condition = [System.Windows.Automation.PropertyCondition]::new(
         [System.Windows.Automation.AutomationElement]::ControlTypeProperty, [System.Windows.Automation.ControlType]::Edit
     )
     $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)
