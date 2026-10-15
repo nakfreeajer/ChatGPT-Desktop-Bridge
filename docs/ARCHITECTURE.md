@@ -62,3 +62,11 @@ This does **not** implement the previously proposed automatic binding from the m
 ## Release gate
 
 No unattended message submission until automatic identity binding, race handling, duplicate prevention, lifecycle behavior, and controlled delivery tests are approved and demonstrated.
+
+## M02-C selected-tab safety gate (source committed; not Windows qualified)
+
+Observed in M02-B: the embedded browser exposes visible `TabItem` controls and `SelectionItemPattern.IsSelected` can identify exactly one active tab. With two tabs open, the selected blank tab exposed an empty address, while selecting the CDLD tab exposed a conversation-shaped address of length 58. Inspection-only identity matching rejected the blank tab.
+
+M02-C requires one selected tab near the embedded-browser address-bar region and uses that selected tab's ephemeral UIA RuntimeId plus visible tab count as a within-run snapshot. Re-query at every critical navigation boundary. It does **not** persist that ID or equate a browser tab with the main Desktop conversation.
+
+After any ambiguous selection, vanished tab, altered tab count, unsupported selection pattern, or changed RuntimeId, the operation returns a fail-closed status. Global `SendKeys('{ENTER}')` still has a residual focus race even with these checks. The selected-tab guard does not solve durable conversation binding, session/window discovery, or server-confirmed message delivery.
