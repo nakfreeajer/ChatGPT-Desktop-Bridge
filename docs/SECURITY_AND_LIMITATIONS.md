@@ -54,3 +54,12 @@ Experimental UI Automation research on a live Windows desktop session; **not an 
 - The selected tab and tab count must remain stable before address insertion, during autocomplete, just before global Enter, during post-navigation verification, and on the final check. Ambiguous/missing/changed selection fails closed.
 - The guard cannot prevent a focus switch in the fraction of time between final check and the global Enter. It also cannot infer the main Desktop conversation's immutable ID, guarantee active window routing across multiple Desktop windows, or prove that a rendered page's content is fresh.
 - M02-C has source and offline tests committed; **no human Windows runtime result yet**. Use supervised tests with empty drafts only.
+
+## M02-D.13 identity correlation limitations
+
+- `Bridge.Resolve.ps1` requires both an exact main-sidebar title and a caller-supplied expected conversation UUID. A duplicate visible sidebar title or ambiguous main document/menu item is an error, never an implicit choice. Titles are mutable and therefore are NOT durable identity keys.
+- `-OpenInBrowser` is an explicit user action that invokes only the `Open on chatgpt.com` menu option. It may create or select an embedded-browser tab. This is a navigation/UI-state mutation, even though no chat message is submitted.
+- If the current selected browser tab already matches the expected ID before menu invocation, the script returns `BROWSER_ALREADY_ON_EXPECTED_ID` rather than claiming causal identity evidence.
+- The script rechecks the selected tab, URL, and browser document after menu invocation, reports a transition category, and returns `MainDesktopBound=false`. It does not control external browsers or equate a name match with permanent main-Desktop identity binding.
+- A UIA race or unexpected ChatGPT Desktop update may cause false negatives or unforeseen menu behavior; no unattended or production use is qualified. Browser tab transitions during UIA polling are not guaranteed detectable between snapshots.
+- The browser URL and ID are compared only in memory; output omits titles, private IDs, URLs, and UIA RuntimeIds. No composer writes, keyboard SendKeys or chat Send invocation is implemented.
