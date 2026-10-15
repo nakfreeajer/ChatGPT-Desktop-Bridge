@@ -4,7 +4,7 @@
 
 | Milestone | Current status | Scope / exit condition |
 |---|---|---|
-| BRIDGE.M00 — Preserve findings | Documentation-only bootstrap approved; publishing/verification in progress at initialization | Store project objective, tested findings, corrected diagnostic reference, limits, and roadmap |
+| BRIDGE.M00 — Preserve findings | COMPLETE — documentation-only bootstrap committed and GitHub file listing verified on 2026-10-15 | Store project objective, tested findings, corrected diagnostic reference, limits, and roadmap |
 | BRIDGE.M01 — Stable identity | Partial experimental progress | UIA native metadata not found; focused embedded-browser URL extraction and known-ID comparison passed; **automatic sidebar-to-ID binding unresolved** |
 | BRIDGE.M02 — Verified selection | Proposed, not approved | Select intended conversation and prove it matches expected durable ID, including negative cases |
 | BRIDGE.M03 — Guarded delivery | Proposed, not approved | Authorized disposable-target send only after identity gate qualified |
