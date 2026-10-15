@@ -231,7 +231,9 @@ try {
                 $obs=Get-ResolveBrowserObservation -Handle $handle -Root $root
                 if($null -eq $obs){continue}
                 if($obs.ConversationId -ne $expected){continue}
-                $transition=Get-BridgeTabTransition -Before $(if($null -eq $baseline){$null}else{$baseline.Tab}) -After $obs.Tab
+                $priorTab=$null
+                if($null -ne $baseline){$priorTab=$baseline.Tab}
+                $transition=Get-BridgeTabTransition -Before $priorTab -After $obs.Tab
                 if($transition -in @('AMBIGUOUS_TAB_TRANSITION','BASELINE_TAB_UNVERIFIED','POST_TAB_UNVERIFIED')){
                     Stop-Resolve $transition 'VERIFY_BROWSER_ID'
                 }
