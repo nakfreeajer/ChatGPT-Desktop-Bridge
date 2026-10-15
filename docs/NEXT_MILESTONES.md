@@ -1,6 +1,6 @@
 # Next milestones and decision gates
 
-**Initial evidence date:** 2026-10-15. **Updated:** 2026-10-16 (M02-C). **Authority:** owner approved M00 documentation and separately approved **BRIDGE.M02-A navigation-only implementation**. No message insertion/submission, unattended release, other-repository changes, credentials, CDP or API integration is approved.
+**Initial evidence date:** 2026-10-15. **Updated:** 2026-10-16 (M02-D.13). **Authority:** owner approved M00 documentation and separately approved **BRIDGE.M02-A navigation-only implementation**. No message insertion/submission, unattended release, other-repository changes, credentials, CDP or API integration is approved.
 
 | Milestone | Current status | Scope / exit condition |
 |---|---|---|
@@ -8,7 +8,9 @@
 | BRIDGE.M01 — Stable identity | Browser-route experiments PASS (2026-10-16); native Desktop binding unresolved | URL extraction, URL injection, focused suggestion + Enter navigation (human-observed), post-navigation expected URL check, and editor's RootWebArea ancestry were demonstrated. These findings apply to the **embedded browser** only |
 | BRIDGE.M02-A — Navigation-only prototype | PASS_CONTROLLED_HAPPY_PATH (human-run) | 18/18 offline assertions; home-screen inspection mismatch reported without navigation; controlled opt-in home-to-CDLD navigation reported NavigationAttempted=true and verified expected browser URL/editor. Not unattended-qualified |
 | BRIDGE.M02-B — Read-only browser tab discovery | PASS_OBSERVED_SCOPE (human-run) | TabItem discovery/selection for one then two tabs, blank second-tab address EMPTY, selected CDLD tab conversation URL length 58, and inspection-only mismatch on blank tab; main Desktop immutable identity remains unresolved |
-| BRIDGE.M02-C — Selected-tab stability guard | IMPLEMENTED / WINDOWS TEST PENDING | Requires one selected browser tab; captures ephemeral RuntimeId; fails closed on selection/tab-count changes before injection, before Enter and after navigation; tests committed, no messages |
+| BRIDGE.M02-C — Selected-tab stability guard | PASS_CONTROLLED_SINGLE_TAB_NAVIGATION and PASS_TWO_TAB_NEGATIVE (human-run) | 20/20 new offline tests, supervised single-tab ID/editor/tab checks, home-to-CDLD navigation with selected-tab stability, two-tab wrong-ID rejection; no deliberate mid-navigation tab switch |
+| BRIDGE.M02-D.1–12 — Manual to automated menu path | PASS_CONTROLLED_OBSERVATION (human-run) | ARM main-panel title and browser title both visible; manual ARM URL baseline captured; CDLD browser ID mismatch rejected; sidebar Chat actions ExpandCollapse and Open on chatgpt.com Invoke verified; browser ID matched ARM baseline in selected tab |
+| BRIDGE.M02-D.13 — Integrated menu-to-browser-ID verifier | SOURCE COMMITTED / WINDOWS QUALIFICATION PENDING | Fail-closed separate script: main document/title and unique sidebar action preflight, explicit menu invocation, expected browser ID/selected-tab/document revalidation; no sending and no permanent main Desktop binding |
 | BRIDGE.M03 — Guarded delivery | Proposed, not approved | Authorized disposable-target send only after identity gate qualified |
 | BRIDGE.M04 — Results / duplicates | Proposed, not approved | Defined acknowledgement levels, request IDs, idempotency and ambiguous-outcome recovery |
 | BRIDGE.M05 — Lifecycle qualification | Proposed, not approved | App restarts, updates, multiple windows, locked session, renamed/missing targets |
@@ -28,13 +30,13 @@ Start with evidence design, not a coding sprint. Desired negative tests include:
 
 ## Decision register
 
-- **Approved:** M00 documentation-only bootstrap (2026-10-15); M02-A navigation-only prototype; M02-C narrowly scoped selected-tab safety implementation (2026-10-16).
+- **Approved:** M00 documentation bootstrap; M02-A navigation-only prototype; M02-C selected-tab safety; M02-D.13 bounded menu-to-browser-ID integration without message submission.
 - **Not approved:** automatic message submission, full production routing, background monitoring, other-repository changes, provisioning, or security-setting changes.
-- **Validation needed:** M02-C new offline tests and controlled Windows navigation/negative tests. M02-A already passed a controlled human-run navigation path; do not generalize that to M02-C or unattended use.
+- **Validation needed:** M02-D.13 offline parser/helper tests followed by supervised Windows preflight and explicit menu-to-browser-ID qualification. M02-C passed stated controlled tests, not race/lifecycle qualifications.
 - **Blocking for production:** automatic durable target binding, ambiguity/race controls, delivery-result semantics, duplicate protection, lifecycle tests.
 
 ## Next human/Architect checkpoint
 
-1. Pull M02-C commit, run `tests/Identity.Offline.Tests.ps1` and `tests/TabGuard.Offline.Tests.ps1` under Windows PowerShell 5.1.
-2. Controlled read-only selected-tab test: with two visible tabs and second blank tab selected, expect `IDENTITY_MISMATCH` with one selected tab verified; with CDLD tab selected, expect `VERIFIED_BROWSER_ROUTE` with `TabSelectionStable=true`.
-3. Only with empty composer drafts and explicit opt-in, test home-screen navigation again under M02-C to verify same-tab stability; stop at first unexpected status. Do not add message sending or infer main Desktop immutable ID binding.
+1. Run `tests/Resolve.Offline.Tests.ps1` on Windows PowerShell 5.1; do not infer PASS until output is reported.
+2. Run `src/Bridge.Resolve.ps1` with exact ARM title and the privately captured expected ARM ID, without `-OpenInBrowser`; expect `PREFLIGHT_PASS`.
+3. Before explicit invocation, manually select a different browser conversation (e.g., CDLD) in the ARM window. Use `-OpenInBrowser` once; check `MENU_TO_BROWSER_ID_VERIFIED`, record the tab transition. Stop at an unexpected outcome. No chat message sends.
