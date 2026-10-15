@@ -19,7 +19,7 @@ function Test-BridgeHomeAddress {
 function Test-BridgeSuggestionTarget {
     param([string]$SuggestionName, [string]$TargetUrl)
     if ([string]::IsNullOrWhiteSpace($SuggestionName) -or [string]::IsNullOrWhiteSpace($TargetUrl)) { return $false }
-    $pattern = 'https://chatgpt\.com/c/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}'
+    $pattern = 'https://chatgpt\.com/c/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?=$|[/?#\s])'
     $urls = [regex]::Matches($SuggestionName, $pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
     return ($urls.Count -eq 1 -and [string]::Equals($urls[0].Value, $TargetUrl, [System.StringComparison]::OrdinalIgnoreCase))
 }
