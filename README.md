@@ -1,6 +1,6 @@
 # ChatGPT Desktop Bridge
 
-**Status:** Experimental proof of concept; M02-A controlled navigation PASS (human-run); M02-C selected-tab safety source committed, Windows qualification pending.  
+**Status:** Experimental proof of concept; M02-A controlled navigation PASS (human-run); M02-C controlled single-tab navigation and two-tab negative tests PASS (human-run); M02-D.13 source implemented, Windows runtime pending.  
 **Scope:** Lightweight Windows UI Automation (UIA) adapter for interacting with existing ChatGPT Desktop conversations, without Chrome DevTools Protocol (CDP) or the OpenAI API.  
 **Evidence date:** 2026-10-15.  
 **Platform observed:** Windows; ChatGPT Desktop using a Chromium/WebView2-based accessibility tree.
@@ -71,8 +71,31 @@ git pull origin main
 .\tests\TabGuard.Offline.Tests.ps1
 ~~~
 
-**M02-C has not yet been qualified on the user's Windows machine.** An offline source commit or unit test does not establish live compatibility. The guard reduces accidental wrong-tab targeting but cannot eliminate a time-of-check/time-of-use keyboard focus race, and it does not bind the main Desktop panel to a durable conversation ID.
+**M02-C passed supervised Windows single-tab positive inspection/navigation and two-tab negative rejection.** Tab switching during navigation remains unqualified, and offline tests alone cannot demonstrate live compatibility. The guard reduces accidental wrong-tab targeting but cannot eliminate a time-of-check/time-of-use keyboard focus race, and it does not bind the main Desktop panel to a durable conversation ID.
+
+## Main-sidebar menu to browser-ID verifier — BRIDGE.M02-D.13
+
+[Bridge.Resolve.ps1](src/Bridge.Resolve.ps1) is a separate bounded Windows PowerShell 5.1 prototype. It requires both a human-known exact sidebar title and an independently expected conversation UUID. It does **not** treat the title or UIA RuntimeId as the durable conversation ID.
+
+- Without `-OpenInBrowser`: inspect only. Require one matching main `RootWebArea` document and one unique matching sidebar `ListItem` with its `Chat actions` button; return `PREFLIGHT_PASS` without opening anything.
+- With `-OpenInBrowser`: require the browser not already on the expected ID; expand the target sidebar menu through `ExpandCollapsePattern`; require exactly one visible `Open on chatgpt.com` `MenuItem`; invoke it through `InvokePattern`; verify the selected embedded-browser tab, full URL ID, browser document, and stable tab identity. Tab-opening may create a tab, reuse the selected tab, or activate a different existing tab; this is identified *after* invocation rather than assumed.
+- The returned `MENU_TO_BROWSER_ID_VERIFIED` is a **controlled correlation**, not durable main-Desktop identity binding; `MainDesktopBound=false` remains. No keyboard injection, message insertion, or Send exists in this script.
+
+From the repository root:
+
+~~~powershell
+# Offline checks; these do not touch ChatGPT Desktop.
+.\tests\Resolve.Offline.Tests.ps1
+
+# Preflight only: no menu invocation.
+.\src\Bridge.Resolve.ps1 -ConversationTitle 'Artifact Relay Manager' -ExpectedConversationId $global:BridgeArmExpectedId
+
+# Explicitly invoke the sidebar menu after preparing a different selected browser tab.
+.\src\Bridge.Resolve.ps1 -ConversationTitle 'Artifact Relay Manager' -ExpectedConversationId $global:BridgeArmExpectedId -OpenInBrowser
+~~~
+
+The `$global:BridgeArmExpectedId` example assumes the user previously captured the ARM ID in the **same PowerShell session**; it is not saved by the script. Do not commit or print private conversation IDs/URLs. M02-D.13 **Windows runtime qualification is pending**.
 
 ## Release status
 
-**M00 documentation, M02-A controlled navigation experiment and M02-C unqualified selected-tab guard.** No background service, installer, message delivery, integration, or production release is included. Milestones are proposed unless explicitly recorded as approved, and prior experimental PASS results are not production acceptance results.
+**M00 documentation, M02-A/M02-C supervised navigation evidence and M02-D.13 unqualified integrated menu-to-ID prototype.** No background service, installer, message delivery, integration, or production release is included. Milestones are proposed unless explicitly recorded as approved, and prior experimental PASS results are not production acceptance results.
