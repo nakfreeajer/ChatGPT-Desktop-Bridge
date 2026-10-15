@@ -46,3 +46,11 @@ Experimental UI Automation research on a live Windows desktop session; **not an 
 - Before any controlled test, both message composers must have empty drafts; never run an unqualified keyboard-navigation prototype unattended or against valuable unsent content.
 - A successful `VERIFIED_BROWSER_ROUTE` means the **embedded browser** URL and a candidate document/editor were observed; it is not a server acknowledgement, a full page-readiness proof, or a guarantee about the separate main Desktop panel.
 - No messaging capability is implemented, and runtime qualification remains pending. No sensitive IDs should be committed to the public repo or printed as logs.
+
+## M02-C selected-tab guard (2026-10-16)
+
+- Positive experimental evidence: two visible browser tabs had exactly one selected `TabItem`; the selected blank tab gave an empty address; switching back to CDLD produced a 58-character conversation-shaped address.
+- `Bridge.TabGuard.ps1` checks exactly one selected tab, using relative position to the browser address control plus UIA selection state. It records only an ephemeral RuntimeId **in memory**, never in output or committed fixtures.
+- The selected tab and tab count must remain stable before address insertion, during autocomplete, just before global Enter, during post-navigation verification, and on the final check. Ambiguous/missing/changed selection fails closed.
+- The guard cannot prevent a focus switch in the fraction of time between final check and the global Enter. It also cannot infer the main Desktop conversation's immutable ID, guarantee active window routing across multiple Desktop windows, or prove that a rendered page's content is fresh.
+- M02-C has source and offline tests committed; **no human Windows runtime result yet**. Use supervised tests with empty drafts only.
