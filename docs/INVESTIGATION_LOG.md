@@ -65,3 +65,16 @@ Automatic ID-to-sidebar binding, duplicate titles, multiple windows, selection/r
 ## M02-A prototype source, 2026-10-16
 
 Owner separately approved navigation-only implementation. Repository now contains `src/Bridge.Navigate.ps1`, `src/Bridge.Identity.ps1`, and `tests/Identity.Offline.Tests.ps1`. These are **committed source and proposed offline checks**, not a claim that Windows runtime or offline tests have been executed. Message insertion/submission remains disabled and unapproved.
+
+## M02-A through M02-B human qualification results (2026-10-16)
+
+- M02-A offline Windows PowerShell tests: `PASS`, 18 assertions. Local clone branch `main`, clean.
+- M02-A read-only browser inspection when CDLD open: `VERIFIED_BROWSER_ROUTE`, `NavigationAttempted=false`, `UrlIdentityVerified=true`, `EditorVerified=true`.
+- M02-A read-only browser inspection from ChatGPT home: `IDENTITY_MISMATCH`, no navigation. Controlled opt-in navigation then opened CDLD and reported `VERIFIED_BROWSER_ROUTE`, `NavigationAttempted=true`, URL/editor both verified. **Controlled happy path only.**
+- M02-B sidebar ListItems for ARM, Statement Strutcture Lab and CDLD: all exposed `SelectionItemPattern=UNSUPPORTED`; visible editors' `RootWebArea` document titles could be inspected. Two independent regions were observed: main Desktop conversation `Artifact Relay Manager` and embedded browser `CDLD`; geometry is not durable binding.
+- Browser in a ChatGPT Desktop window supports separate tabs, observed via two visible `TabItem` elements. One selected at a time. Selected new blank tab: one address bar, address EMPTY. Selected CDLD tab: one bar, conversation-shaped URL length 58. With blank tab active, M02-A read-only identity test rejected CDLD as `IDENTITY_MISMATCH`, no navigation.
+- **Unresolved:** multiple independent Desktop-window discovery, sidebar selection's immutable ID, focus races, and keyboard-tab stability across updates.
+
+## M02-C source update (2026-10-16)
+
+Added a read-only selected-tab stability gate to the navigation-only prototype. It rejects ambiguity and changed ephemeral selected-tab RuntimeId/tab count across navigation. Added negative offline snapshot tests. **Source committed; offline tests and Windows live qualification have not been reported by the human.**
