@@ -36,7 +36,7 @@ Assert-BridgeCheck (-not (Test-BridgeTabSnapshotStable $before $lost)) 'missing 
 Assert-BridgeCheck (-not (Test-BridgeTabSnapshotStable $null $same)) 'missing baseline rejected'
 Assert-BridgeCheck (-not (Test-BridgeTabSnapshotStable $before $null)) 'missing postcheck rejected'
 $source = [System.IO.File]::ReadAllText((Join-Path $root 'src/Bridge.Navigate.ps1'))
-Assert-BridgeCheck ($source.Contains("Assert-BridgeTabStable -Handle $handle") -eq $false) 'test fixture dollar expansion guard'
+Assert-BridgeCheck ($source.Contains('Assert-BridgeTabStable -Handle $handle -Bar $bar -Baseline $tabBaseline')) 'selected-tab assertions integrated'
 # Source inspection for presence of checks at each critical phase. This does not replace UIA qualification.
 Assert-BridgeCheck ($source.Contains(" -Stage 'INJECT_URL'")) 'guard before injection'
 Assert-BridgeCheck ($source.Contains(" -Stage 'SUGGESTION'")) 'guard during suggestion'
