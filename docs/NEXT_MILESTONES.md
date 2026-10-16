@@ -1,5 +1,7 @@
 # Next milestones and decision gates
 
+**BRIDGE.CODEX.BASELINE.1B update (2026-10-16):** The secure supervised launcher passed offline qualification (35 assertions) and is awaiting Architect review. Its secure prompt, UIA baseline and live menu path were not executed. BRIDGE.M02-D.15 remains not started; this milestone does not authorize live invocation.
+
 **Initial evidence date:** 2026-10-15. **Updated:** 2026-10-16 (M02-D.13 offline qualification). **Authority:** owner approved M00 documentation and separately approved **BRIDGE.M02-A navigation-only implementation**. No message insertion/submission, unattended release, other-repository changes, credentials, CDP or API integration is approved.
 
 | Milestone | Current status | Scope / exit condition |

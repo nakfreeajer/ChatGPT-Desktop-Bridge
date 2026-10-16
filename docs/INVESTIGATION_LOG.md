@@ -109,6 +109,12 @@ Evidence level: human-provided Windows PowerShell console output, not independen
 
 **Next unresolved test:** M02-D.13 live **preflight only** (`Bridge.Resolve.ps1` without `-OpenInBrowser`). After that passes, a separately bounded supervised `-OpenInBrowser` test can qualify the integrated menu-to-browser-ID verification sequence. Both are **PENDING**. No message submission is approved or implemented.
 
+## BRIDGE.CODEX.BASELINE.1B launcher qualification (2026-10-16)
+
+Added `src/Bridge.Resolve.Supervised.ps1` as an interactive in-process wrapper, plus offline source/syntax guards. The independently verified UUID is accepted only through `Read-Host -AsSecureString`, validated in memory, passed directly to `Bridge.Resolve.ps1`, and omitted from sanitized JSON. Preflight-only and separately confirmed invocation modes are available. Invocation mode requires a unique existing selected browser conversation different from the expected ID, confirms again after the operator types `OPEN`, and makes one live resolver call. The existing resolver was strengthened to fail closed when its browser baseline is missing or unreadable.
+
+Offline Windows PowerShell 5.1 evidence: `SupervisedLauncher.Offline.Tests.ps1` PASS (35 assertions); Identity PASS (18); TabGuard PASS (20); Resolve PASS (34); **107/107 assertions PASS across four suites**. `git diff --check` passed. The launcher has not been run interactively, and no UIA or menu invocation was performed. Await Architect review before BRIDGE.M02-D.15.
+
 ## Evidence reconciliation: prior versus integrated behavior
 
 - M02-D.6 direct menu-name search returned `Matches=0` when menu visibility/focus was not secured; this was **inconclusive**, not proof that UIA cannot find the menu item.

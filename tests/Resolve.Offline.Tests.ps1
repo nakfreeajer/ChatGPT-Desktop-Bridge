@@ -52,6 +52,7 @@ Assert-ResolveTest ($source.Contains("Status='PREFLIGHT_PASS'")) 'preflight term
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'SIDEBAR_TARGET_AMBIGUOUS'")) 'duplicate titles rejected'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'MENU_ITEM_AMBIGUOUS'")) 'menu ambiguity rejected'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_ALREADY_ON_EXPECTED_ID'")) 'initial match must not imply action evidence'
+Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_BASELINE_NOT_VERIFIED' 'BROWSER_BASELINE'")) 'invocation requires a verified existing browser conversation'
 Assert-ResolveTest ($source.Contains('if($obs.ConversationId -ne $expected){continue}')) 'expected ID comparison mandatory'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'TAB_CHANGED_DURING_VERIFICATION'")) 'tab stability check present'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_DESTINATION_CHANGED'")) 'final URL/tab check present'

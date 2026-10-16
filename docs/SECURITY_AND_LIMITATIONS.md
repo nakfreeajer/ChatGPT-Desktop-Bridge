@@ -64,6 +64,13 @@ Experimental UI Automation research on a live Windows desktop session; **not an 
 - A UIA race or unexpected ChatGPT Desktop update may cause false negatives or unforeseen menu behavior; no unattended or production use is qualified. Browser tab transitions during UIA polling are not guaranteed detectable between snapshots.
 - The browser URL and ID are compared only in memory; output omits titles, private IDs, URLs, and UIA RuntimeIds. No composer writes, keyboard SendKeys or chat Send invocation is implemented.
 
+## BRIDGE.CODEX.BASELINE.1B supervised launcher
+
+- `src/Bridge.Resolve.Supervised.ps1` requests the independently verified ARM UUID with `Read-Host -AsSecureString`, rejects redirected/noninteractive input, validates with the existing UUID helper, and converts the secure value only in the current Windows PowerShell process. The temporary BSTR is zeroed and the SecureString disposed.
+- The wrapper invokes `Bridge.Resolve.ps1` in-process. `-PreflightOnly` runs the existing read-only resolver preflight. `-ConfirmOpenInBrowser` runs that preflight, verifies a unique selected browser tab whose address resolves to a different conversation ID, then requires the human to type `OPEN` and repeats the baseline check before one resolver `-OpenInBrowser` call. The resolver now fails closed if no existing browser-conversation baseline can be read.
+- The selected browser address is read through UIA ValuePattern after focusing its embedded-browser address control; this changes keyboard focus. The wrapper never prints or persists the address or either conversation ID. Its result contains only sanitized status and verification fields and keeps `MainDesktopBound=false`.
+- The launcher has offline syntax/source-guard qualification only. It has not been qualified against live input, UIA, or menu invocation. Do not treat offline checks as evidence that the live path works.
+
 ## M02-D.13 qualification update (2026-10-16)
 
 Human-provided Windows PowerShell output confirms offline suites `18/18`, `20/20`, and `33/33`, **71/71 assertions PASS** across M02-A, M02-C and M02-D.13. These offline checks test parser/pure helper/source invariants, **not runtime proof** of `Bridge.Resolve.ps1`.

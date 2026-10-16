@@ -1,6 +1,31 @@
 # PowerShell diagnostics — evidence and safe references
 
-**Documentation only.** These are reference commands from the 2026-10-15 investigation, not Bridge source code or an unattended runner. No code here is executed by the repository.
+## BRIDGE.CODEX.BASELINE.1B launcher (offline qualification only)
+
+From the repository root, run the offline suite:
+
+~~~powershell
+.\tests\Identity.Offline.Tests.ps1
+.\tests\TabGuard.Offline.Tests.ps1
+.\tests\Resolve.Offline.Tests.ps1
+.\tests\SupervisedLauncher.Offline.Tests.ps1
+~~~
+
+The supervised launcher has two entry modes, each requiring an interactive terminal and a hidden UUID prompt. Preflight only:
+
+~~~powershell
+.\src\Bridge.Resolve.Supervised.ps1 -PreflightOnly
+~~~
+
+Separately confirmed menu invocation (not run as part of offline qualification):
+
+~~~powershell
+.\src\Bridge.Resolve.Supervised.ps1 -ConfirmOpenInBrowser
+~~~
+
+The second mode performs a read-only resolver preflight and a selected-browser ID mismatch check before prompting for exact confirmation `OPEN`. It invokes the menu once only after that confirmation. Stop if any precondition or verification fails. The UUID is entered with `Read-Host -AsSecureString`; do not paste it into a command line or save it in a file, environment variable, transcript, or log.
+
+**Documentation only.** The diagnostics below are reference commands from the 2026-10-15 investigation, not Bridge source code or an unattended runner. No code there is executed by the repository.
 
 ## Preconditions
 

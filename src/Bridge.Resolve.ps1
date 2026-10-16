@@ -184,6 +184,9 @@ try {
     }else{
         $result.Stage='BROWSER_BASELINE'
         $baseline=Get-ResolveBrowserObservation -Handle $handle -Root $root
+        if($null -eq $baseline -or [string]::IsNullOrWhiteSpace([string]$baseline.ConversationId)){
+            Stop-Resolve 'BROWSER_BASELINE_NOT_VERIFIED' 'BROWSER_BASELINE'
+        }
         if($null -ne $baseline -and $baseline.ConversationId -eq $expected){
             Stop-Resolve 'BROWSER_ALREADY_ON_EXPECTED_ID' 'BROWSER_BASELINE'
         }
