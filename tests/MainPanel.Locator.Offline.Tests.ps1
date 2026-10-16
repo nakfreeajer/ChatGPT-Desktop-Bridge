@@ -137,10 +137,81 @@ $unowned = @{} + $base
 $unowned.MainDocumentOwnershipEstablished = $false
 $result = Select-BridgeMainPanelTargets @unowned -Nodes $nodes
 Assert-MainPanelTest ($result.Status -eq 'MAIN_DOCUMENT_OWNERSHIP_UNVERIFIED' -and $null -eq $result.Composer -and $null -eq $result.SendButton) 'unverified Document ownership authorizes no controls'
-$runtimeBlocked = Get-BridgeMainPanelControls -DocumentElement $null -MainDocumentOwnershipEstablished $false
-Assert-MainPanelTest ($runtimeBlocked.Status -eq 'MAIN_DOCUMENT_OWNERSHIP_UNVERIFIED' -and -not $runtimeBlocked.TraversalStarted) 'runtime locator refuses before UIA traversal without owned Document'
-$runtimeLimitRejected = Get-BridgeMainPanelControls -DocumentElement $null -MainDocumentOwnershipEstablished $true -MaximumNodes 5001
+$fakeDocument = [pscustomobject]@{ Marker='document' }
+$otherDocument = [pscustomobject]@{ Marker='different-document' }
+$fakeRoot = [pscustomobject]@{ Marker='window-root' }
+$fakeAnchor = [pscustomobject]@{ Marker='human-anchor' }
+$humanEvidence = [pscustomobject]@{
+    EvidenceKind='HUMAN_ANCHORED_MAIN_PANEL'; DocumentElement=$fakeDocument; WindowRoot=$fakeRoot
+    HumanAnchor=$fakeAnchor; MainLandmark=[pscustomobject]@{Marker='main'}; ConversationRegion=[pscustomobject]@{Marker='region'}
+    WindowHandle=[IntPtr]123; IsFresh=$true; MainDesktopBound=$false; ConversationIdentity='UNRESOLVED'
+}
+$runtimeNoEvidence = Get-BridgeMainPanelControls -DocumentElement $fakeDocument -OwnershipEvidence $null
+Assert-MainPanelTest ($runtimeNoEvidence.Status -eq 'OWNERSHIP_EVIDENCE_UNAVAILABLE' -and -not $runtimeNoEvidence.TraversalStarted) 'runtime locator refuses caller ownership assertion without evidence'
+$assertedOnly = [pscustomobject]@{MainDocumentOwnershipEstablished=$true}
+$runtimeAssertedOnly = Get-BridgeMainPanelControls -DocumentElement $fakeDocument -OwnershipEvidence $assertedOnly
+Assert-MainPanelTest ($runtimeAssertedOnly.Status -eq 'OWNERSHIP_EVIDENCE_INVALID' -and -not $runtimeAssertedOnly.TraversalStarted) 'legacy caller Boolean is not ownership evidence'
+$mismatchedEvidence = Test-BridgeMainPanelOwnershipEvidenceEnvelope -Evidence $humanEvidence -DocumentElement $otherDocument
+Assert-MainPanelTest ($mismatchedEvidence -eq 'OWNERSHIP_EVIDENCE_DOCUMENT_MISMATCH') 'ownership evidence is bound to its exact Document'
+$runtimeMismatch = Get-BridgeMainPanelControls -DocumentElement $otherDocument -OwnershipEvidence $humanEvidence
+Assert-MainPanelTest ($runtimeMismatch.Status -eq 'OWNERSHIP_EVIDENCE_DOCUMENT_MISMATCH' -and -not $runtimeMismatch.TraversalStarted) 'runtime locator rejects evidence for a different Document before traversal'
+$staleEvidenceRecord = [pscustomobject]@{}
+foreach ($property in $humanEvidence.PSObject.Properties) { $staleEvidenceRecord | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value }
+$staleEvidenceRecord.IsFresh = $false
+$staleResult = Test-BridgeMainPanelOwnershipEvidenceEnvelope -Evidence $staleEvidenceRecord -DocumentElement $fakeDocument
+Assert-MainPanelTest ($staleResult -eq 'OWNERSHIP_EVIDENCE_STALE') 'stale ownership evidence is rejected'
+$invalidEvidence = [pscustomobject]@{}
+foreach ($property in $humanEvidence.PSObject.Properties) { $invalidEvidence | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value }
+$invalidEvidence.MainDesktopBound = $true
+$invalidResult = Test-BridgeMainPanelOwnershipEvidenceEnvelope -Evidence $invalidEvidence -DocumentElement $fakeDocument
+Assert-MainPanelTest ($invalidResult -eq 'OWNERSHIP_EVIDENCE_INVALID') 'human anchor cannot assert permanent Desktop identity'
+$unsupportedEvidence = [pscustomobject]@{}
+foreach ($property in $humanEvidence.PSObject.Properties) { $unsupportedEvidence | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value }
+$unsupportedEvidence.EvidenceKind = 'INDEPENDENT_MAIN_IDENTITY'
+$unsupportedResult = Test-BridgeMainPanelOwnershipEvidenceEnvelope -Evidence $unsupportedEvidence -DocumentElement $fakeDocument
+Assert-MainPanelTest ($unsupportedResult -eq 'OWNERSHIP_EVIDENCE_UNSUPPORTED') 'unsupported evidence class fails closed'
+$validHumanEnvelope = Test-BridgeMainPanelOwnershipEvidenceEnvelope -Evidence $humanEvidence -DocumentElement $fakeDocument
+Assert-MainPanelTest ($validHumanEnvelope -eq 'OWNERSHIP_EVIDENCE_VALID' -and -not $humanEvidence.MainDesktopBound -and $humanEvidence.ConversationIdentity -eq 'UNRESOLVED') 'human-anchored evidence does not become immutable identity'
+$runtimeLimitRejected = Get-BridgeMainPanelControls -DocumentElement $fakeDocument -OwnershipEvidence $humanEvidence -MaximumNodes 5001
 Assert-MainPanelTest ($runtimeLimitRejected.Status -eq 'INVALID_TRAVERSAL_LIMIT' -and -not $runtimeLimitRejected.TraversalStarted) 'runtime locator remains bounded'
+
+$finalComposer = New-PanelEdit
+$finalComposer | Add-Member Identity 'edit-original'
+$finalSend = New-PanelSend
+$finalSend | Add-Member Identity 'send-original'
+$finalArgs = @{EnumerationComplete=$true;ComposerCandidates=@($finalComposer);SendCandidates=@($finalSend);DocumentGeometry=$documentGeometry;OriginalComposer='edit-original';OriginalSend='send-original'}
+function Invoke-FinalSnapshotCase {
+    param([hashtable]$Overrides)
+    $caseArguments = @{} + $script:finalArgs
+    foreach ($key in $Overrides.Keys) { $caseArguments[$key] = $Overrides[$key] }
+    Confirm-BridgeMainPanelFinalSnapshot @caseArguments
+}
+$finalResult = Confirm-BridgeMainPanelFinalSnapshot @finalArgs
+Assert-MainPanelTest ($finalResult -eq 'FINAL_SNAPSHOT_VERIFIED') 'final unique stable snapshot is accepted'
+$dupFinalComposer = New-PanelEdit -Key 6 -Tag 'duplicate'
+$dupFinalComposer | Add-Member Identity 'edit-duplicate'
+$finalResult = Invoke-FinalSnapshotCase @{ComposerCandidates=@($finalComposer,$dupFinalComposer)}
+Assert-MainPanelTest ($finalResult -eq 'FINAL_COMPOSER_AMBIGUOUS') 'composer added before final verification is rejected'
+$dupFinalSend = New-PanelSend -Key 6 -Tag 'duplicate'
+$dupFinalSend | Add-Member Identity 'send-duplicate'
+$finalResult = Invoke-FinalSnapshotCase @{SendCandidates=@($finalSend,$dupFinalSend)}
+Assert-MainPanelTest ($finalResult -eq 'FINAL_SEND_AMBIGUOUS') 'duplicate Send added before final verification is rejected'
+$finalResult = Invoke-FinalSnapshotCase @{ComposerCandidates=@()}
+Assert-MainPanelTest ($finalResult -eq 'FINAL_COMPOSER_MISSING') 'composer disappearance before final verification is rejected'
+$finalResult = Invoke-FinalSnapshotCase @{SendCandidates=@()}
+Assert-MainPanelTest ($finalResult -eq 'FINAL_SEND_MISSING') 'Send disappearance before final verification is rejected'
+$replacementComposer = New-PanelEdit -Tag 'replacement'
+$replacementComposer | Add-Member Identity 'edit-replacement'
+$finalResult = Invoke-FinalSnapshotCase @{ComposerCandidates=@($replacementComposer)}
+Assert-MainPanelTest ($finalResult -eq 'FINAL_CONTROL_REPLACED') 'composer replacement before final verification is rejected'
+$replacementSend = New-PanelSend -Tag 'replacement'
+$replacementSend | Add-Member Identity 'send-replacement'
+$finalResult = Invoke-FinalSnapshotCase @{SendCandidates=@($replacementSend)}
+Assert-MainPanelTest ($finalResult -eq 'FINAL_CONTROL_REPLACED') 'Send replacement before final verification is rejected'
+$incompleteFinal = @{} + $finalArgs
+$incompleteFinal.EnumerationComplete = $false
+$finalResult = Confirm-BridgeMainPanelFinalSnapshot @incompleteFinal
+Assert-MainPanelTest ($finalResult -eq 'FINAL_ENUMERATION_INCOMPLETE') 'incomplete final region enumeration is rejected'
 
 $incomplete = @{} + $base
 $incomplete.EnumerationComplete = $false

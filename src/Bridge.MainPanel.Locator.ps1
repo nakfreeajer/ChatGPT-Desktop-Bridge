@@ -172,20 +172,205 @@ function Test-BridgeMainPanelUiAAncestry {
     return $false
 }
 
+function Get-BridgeMainPanelHumanAnchorPath {
+    param([object]$WindowRoot, [object]$HumanAnchor, [object]$ExpectedWindowHandle, [int]$MaximumDepth = 32)
+
+    try {
+        if ($null -eq $WindowRoot -or $null -eq $HumanAnchor -or
+            $WindowRoot -isnot [System.Windows.Automation.AutomationElement] -or
+            $HumanAnchor -isnot [System.Windows.Automation.AutomationElement] -or
+            [IntPtr]$ExpectedWindowHandle -eq [IntPtr]::Zero -or
+            [int]$WindowRoot.Current.NativeWindowHandle -ne ([IntPtr]$ExpectedWindowHandle).ToInt32()) {
+            return [pscustomobject]@{ Status='OWNERSHIP_EVIDENCE_INVALID'; Document=$null; Main=$null; Region=$null }
+        }
+
+        $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+        $landmarkProperty = [System.Windows.Automation.AutomationElementIdentifiers]::LandmarkTypeProperty
+        $current = $HumanAnchor
+        $region = $null
+        $main = $null
+        $document = $null
+        for ($depth = 0; $depth -lt $MaximumDepth -and $null -ne $current; $depth++) {
+            if ($current.Equals($WindowRoot)) {
+                if ($null -ne $document -and $null -ne $main -and $null -ne $region) {
+                    return [pscustomobject]@{ Status='HUMAN_ANCHOR_VERIFIED'; Document=$document; Main=$main; Region=$region }
+                }
+                break
+            }
+            $controlType = $current.Current.ControlType
+            if ($controlType -eq [System.Windows.Automation.ControlType]::Document) {
+                if ($null -ne $document -or $null -eq $main -or $null -eq $region) { break }
+                $document = $current
+            }
+            $role = Get-BridgeMainPanelRoleValue -Element $current -LandmarkProperty $landmarkProperty
+            if ($null -eq $region -and $role -eq 'Region' -and [string]$current.Current.Name -ceq 'Conversation') { $region = $current }
+            if ($null -ne $region -and $null -eq $main -and $role -eq 'Main') { $main = $current }
+            $current = $walker.GetParent($current)
+        }
+    } catch { }
+    return [pscustomobject]@{ Status='MAIN_DOCUMENT_OWNERSHIP_UNVERIFIED'; Document=$null; Main=$null; Region=$null }
+}
+
+function New-BridgeMainPanelOwnershipEvidence {
+    [CmdletBinding()]
+    param([object]$WindowRoot, [object]$HumanAnchor, [object]$WindowHandle)
+
+    $path = Get-BridgeMainPanelHumanAnchorPath -WindowRoot $WindowRoot -HumanAnchor $HumanAnchor -ExpectedWindowHandle $WindowHandle
+    if ($path.Status -ne 'HUMAN_ANCHOR_VERIFIED') {
+        return [pscustomobject]@{ Status=$path.Status; Evidence=$null }
+    }
+    return [pscustomobject]@{
+        Status='HUMAN_ANCHOR_VERIFIED'
+        Evidence=[pscustomobject]@{
+            EvidenceKind='HUMAN_ANCHORED_MAIN_PANEL'
+            DocumentElement=$path.Document
+            WindowRoot=$WindowRoot
+            HumanAnchor=$HumanAnchor
+            MainLandmark=$path.Main
+            ConversationRegion=$path.Region
+            WindowHandle=[IntPtr]$WindowHandle
+            IsFresh=$true
+            MainDesktopBound=$false
+            ConversationIdentity='UNRESOLVED'
+        }
+    }
+}
+
+function Test-BridgeMainPanelOwnershipEvidenceEnvelope {
+    param([object]$Evidence, [object]$DocumentElement)
+
+    if ($null -eq $Evidence) { return 'OWNERSHIP_EVIDENCE_UNAVAILABLE' }
+    foreach ($field in @('EvidenceKind','DocumentElement','WindowRoot','HumanAnchor','MainLandmark','ConversationRegion','WindowHandle','IsFresh','MainDesktopBound','ConversationIdentity')) {
+        if ($null -eq $Evidence.PSObject.Properties[$field]) { return 'OWNERSHIP_EVIDENCE_INVALID' }
+    }
+    if ($Evidence.EvidenceKind -ne 'HUMAN_ANCHORED_MAIN_PANEL') { return 'OWNERSHIP_EVIDENCE_UNSUPPORTED' }
+    if ($Evidence.IsFresh -isnot [bool] -or -not $Evidence.IsFresh) { return 'OWNERSHIP_EVIDENCE_STALE' }
+    if ($Evidence.MainDesktopBound -isnot [bool] -or $Evidence.MainDesktopBound -or $Evidence.ConversationIdentity -ne 'UNRESOLVED') {
+        return 'OWNERSHIP_EVIDENCE_INVALID'
+    }
+    if ($null -eq $DocumentElement -or $null -eq $Evidence.DocumentElement) {
+        return 'OWNERSHIP_EVIDENCE_INVALID'
+    }
+    try {
+        if (-not [object]::ReferenceEquals($DocumentElement, $Evidence.DocumentElement)) { return 'OWNERSHIP_EVIDENCE_DOCUMENT_MISMATCH' }
+    } catch { return 'OWNERSHIP_EVIDENCE_STALE' }
+    return 'OWNERSHIP_EVIDENCE_VALID'
+}
+
+function Test-BridgeMainPanelControlIdentityEqual {
+    param([object]$First, [object]$Second)
+    if ($null -eq $First -or $null -eq $Second) { return $false }
+    try {
+        return [bool]$First.Equals($Second)
+    } catch { return $false }
+}
+
+function Confirm-BridgeMainPanelFinalSnapshot {
+    param([object]$EnumerationComplete, [object]$ComposerCandidates, [object]$SendCandidates, [object]$DocumentGeometry, [object]$OriginalComposer, [object]$OriginalSend)
+
+    if ($EnumerationComplete -isnot [bool] -or -not $EnumerationComplete) { return 'FINAL_ENUMERATION_INCOMPLETE' }
+    $composers = @($ComposerCandidates | Where-Object { $_.ControlType -eq 'ControlType.Edit' -and $_.Name -ceq 'Ask ChatGPT' })
+    $sends = @($SendCandidates | Where-Object { $_.ControlType -eq 'ControlType.Button' -and $_.Name -ceq 'Send' })
+    if ($composers.Count -eq 0) { return 'FINAL_COMPOSER_MISSING' }
+    if ($composers.Count -gt 1) { return 'FINAL_COMPOSER_AMBIGUOUS' }
+    if ($sends.Count -eq 0) { return 'FINAL_SEND_MISSING' }
+    if ($sends.Count -gt 1) { return 'FINAL_SEND_AMBIGUOUS' }
+    $eligible = Select-BridgeMainComposerCandidate -MainDocumentOwnershipEstablished $true -EnumerationComplete $true `
+        -MetadataFresh $true -MetadataComplete $true -DocumentGeometry $DocumentGeometry -Candidates $composers
+    if ($eligible.Status -ne 'SELECTED') { return 'FINAL_COMPOSER_INELIGIBLE' }
+    $send = $sends[0]
+    foreach ($field in @('IsEnabled','IsVisible','InvokePatternAvailable')) {
+        if ($null -eq $send.PSObject.Properties[$field] -or $send.$field -isnot [bool]) { return 'FINAL_METADATA_INCOMPLETE' }
+    }
+    if (-not $send.IsEnabled -or -not $send.IsVisible -or -not $send.InvokePatternAvailable) { return 'FINAL_SEND_INELIGIBLE' }
+    if (-not (Test-BridgeMainPanelControlIdentityEqual -First $composers[0].Identity -Second $OriginalComposer) -or
+        -not (Test-BridgeMainPanelControlIdentityEqual -First $send.Identity -Second $OriginalSend)) { return 'FINAL_CONTROL_REPLACED' }
+    return 'FINAL_SNAPSHOT_VERIFIED'
+}
+
+function Get-BridgeMainPanelFinalRegionSnapshot {
+    param([object]$RegionElement, [object]$DocumentElement, [object]$OriginalComposer, [object]$OriginalSend, [int]$MaximumNodes=2500, [int]$MaximumDepth=24)
+    $walker = [System.Windows.Automation.TreeWalker]::ControlViewWalker
+    $queue = New-Object System.Collections.Queue
+    $queue.Enqueue([pscustomobject]@{ Element=$RegionElement; Depth=0 })
+    $edits = @(); $buttons = @(); $visited = 0
+    try {
+        while ($queue.Count -gt 0) {
+            $item = $queue.Dequeue()
+            if ($item.Depth -ge $MaximumDepth) {
+                if ($null -ne $walker.GetFirstChild($item.Element)) { return 'FINAL_ENUMERATION_INCOMPLETE' }
+                continue
+            }
+            $child = $walker.GetFirstChild($item.Element)
+            while ($null -ne $child) {
+                $visited++
+                if ($visited -gt $MaximumNodes) { return 'FINAL_ENUMERATION_INCOMPLETE' }
+                $type = $child.Current.ControlType
+                if ($type -eq [System.Windows.Automation.ControlType]::Document) {
+                    $child = $walker.GetNextSibling($child); continue
+                }
+                if ($type -eq [System.Windows.Automation.ControlType]::Edit -or $type -eq [System.Windows.Automation.ControlType]::Button) {
+                    $patterns = @($child.GetSupportedPatterns() | ForEach-Object { $_.ProgrammaticName })
+                    $entry = [pscustomobject]@{
+                        Identity=$child; ControlType=$type.ProgrammaticName; Name=[string]$child.Current.Name
+                        IsEnabled=[bool]$child.Current.IsEnabled; IsVisible=(-not [bool]$child.Current.IsOffscreen)
+                    }
+                    if ($type -eq [System.Windows.Automation.ControlType]::Edit) {
+                        $entry | Add-Member IsKeyboardFocusable ([bool]$child.Current.IsKeyboardFocusable)
+                        $entry | Add-Member ValuePatternAvailable ($patterns -contains 'ValuePatternIdentifiers.Pattern')
+                        $entry | Add-Member TextPatternAvailable ($patterns -contains 'TextPatternIdentifiers.Pattern')
+                        $entry | Add-Member ValuePatternIsReadOnly ([bool]$child.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.IsReadOnly)
+                        $rect = $child.Current.BoundingRectangle
+                        $entry | Add-Member BoundingRectangle ([pscustomobject]@{Left=$rect.Left;Top=$rect.Top;Right=$rect.Right;Bottom=$rect.Bottom})
+                        $edits += ,$entry
+                    } else {
+                        $entry | Add-Member InvokePatternAvailable ($patterns -contains 'InvokePatternIdentifiers.Pattern')
+                        $buttons += ,$entry
+                    }
+                }
+                $queue.Enqueue([pscustomobject]@{Element=$child;Depth=($item.Depth+1)})
+                $child = $walker.GetNextSibling($child)
+            }
+        }
+    } catch { return 'FINAL_UIA_STATE_UNAVAILABLE' }
+
+    try {
+        if ($DocumentElement.Current.ControlType -ne [System.Windows.Automation.ControlType]::Document) { return 'FINAL_DOCUMENT_CHANGED' }
+        $documentRect = $DocumentElement.Current.BoundingRectangle
+        $DocumentGeometry = [pscustomobject]@{Left=$documentRect.Left;Top=$documentRect.Top;Right=$documentRect.Right;Bottom=$documentRect.Bottom}
+    } catch { return 'FINAL_UIA_STATE_UNAVAILABLE' }
+
+    $originalComposerNode = $OriginalComposer
+    $originalSendNode = $OriginalSend
+    $composerIdentity = $originalComposerNode.Element
+    $sendIdentity = $originalSendNode.Element
+    Confirm-BridgeMainPanelFinalSnapshot -EnumerationComplete $true -ComposerCandidates $edits -SendCandidates $buttons `
+        -DocumentGeometry $DocumentGeometry -OriginalComposer $composerIdentity -OriginalSend $sendIdentity
+}
+
 function Get-BridgeMainPanelControls {
     [CmdletBinding()]
     param(
         [object]$DocumentElement,
-        [object]$MainDocumentOwnershipEstablished,
+        [object]$OwnershipEvidence,
         [int]$MaximumNodes = 2500,
         [int]$MaximumDepth = 24
     )
 
-    if ($MainDocumentOwnershipEstablished -isnot [bool] -or -not $MainDocumentOwnershipEstablished) {
-        return [pscustomobject]@{ Status='MAIN_DOCUMENT_OWNERSHIP_UNVERIFIED'; Composer=$null; SendButton=$null; TraversalStarted=$false }
+    $evidenceStatus = Test-BridgeMainPanelOwnershipEvidenceEnvelope -Evidence $OwnershipEvidence -DocumentElement $DocumentElement
+    if ($evidenceStatus -ne 'OWNERSHIP_EVIDENCE_VALID') {
+        return [pscustomobject]@{ Status=$evidenceStatus; Composer=$null; SendButton=$null; TraversalStarted=$false; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
     }
     if ($MaximumNodes -lt 1 -or $MaximumNodes -gt 5000 -or $MaximumDepth -lt 1 -or $MaximumDepth -gt 32) {
         return [pscustomobject]@{ Status='INVALID_TRAVERSAL_LIMIT'; Composer=$null; SendButton=$null; TraversalStarted=$false }
+    }
+    $ownershipPath = Get-BridgeMainPanelHumanAnchorPath -WindowRoot $OwnershipEvidence.WindowRoot `
+        -HumanAnchor $OwnershipEvidence.HumanAnchor -ExpectedWindowHandle $OwnershipEvidence.WindowHandle
+    if ($ownershipPath.Status -ne 'HUMAN_ANCHOR_VERIFIED' -or
+        -not $ownershipPath.Document.Equals($DocumentElement) -or
+        -not $ownershipPath.Main.Equals($OwnershipEvidence.MainLandmark) -or
+        -not $ownershipPath.Region.Equals($OwnershipEvidence.ConversationRegion)) {
+        return [pscustomobject]@{ Status='OWNERSHIP_EVIDENCE_STALE'; Composer=$null; SendButton=$null; TraversalStarted=$false; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
     }
     if ($null -eq $DocumentElement -or $DocumentElement -isnot [System.Windows.Automation.AutomationElement]) {
         return [pscustomobject]@{ Status='DOCUMENT_ELEMENT_UNAVAILABLE'; Composer=$null; SendButton=$null; TraversalStarted=$false }
@@ -250,6 +435,10 @@ function Get-BridgeMainPanelControls {
     if ($branch.Status -ne 'BRANCH_SELECTED') {
         return [pscustomobject]@{ Status=$branch.Status; Composer=$null; SendButton=$null; TraversalStarted=$true }
     }
+    if (-not $branch.MainNode.Element.Equals($ownershipPath.Main) -or
+        -not $branch.ConversationRegion.Element.Equals($ownershipPath.Region)) {
+        return [pscustomobject]@{ Status='OWNERSHIP_EVIDENCE_STRUCTURE_MISMATCH'; Composer=$null; SendButton=$null; TraversalStarted=$true; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
+    }
 
     $nodeByKey = $branch.NodeByKey
     foreach ($node in $nodes) {
@@ -283,7 +472,7 @@ function Get-BridgeMainPanelControls {
     $selection = Select-BridgeMainPanelTargets -MainDocumentOwnershipEstablished $true -EnumerationComplete $true `
         -MetadataFresh $true -MetadataComplete $true -DocumentGeometry $documentRect -Nodes $nodes
     if ($selection.Status -ne 'SELECTED') {
-        return [pscustomobject]@{ Status=$selection.Status; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='CALLER_ASSERTED'; MainConversationIdentity='UNRESOLVED' }
+        return [pscustomobject]@{ Status=$selection.Status; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
     }
 
     try {
@@ -292,13 +481,21 @@ function Get-BridgeMainPanelControls {
             -not (Test-BridgeMainPanelUiAAncestry -Element $selection.ConversationRegion.Element -Ancestor $selection.MainLandmark.Element) -or
             -not (Test-BridgeMainPanelUiAAncestry -Element $selection.Composer.Element -Ancestor $selection.ConversationRegion.Element) -or
             -not (Test-BridgeMainPanelUiAAncestry -Element $selection.SendButton.Element -Ancestor $selection.ConversationRegion.Element)) {
-            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='CALLER_ASSERTED'; MainConversationIdentity='UNRESOLVED' }
+            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
+        }
+        $ownershipPathNow = Get-BridgeMainPanelHumanAnchorPath -WindowRoot $OwnershipEvidence.WindowRoot `
+            -HumanAnchor $OwnershipEvidence.HumanAnchor -ExpectedWindowHandle $OwnershipEvidence.WindowHandle
+        if ($ownershipPathNow.Status -ne 'HUMAN_ANCHOR_VERIFIED' -or
+            -not $ownershipPathNow.Document.Equals($DocumentElement) -or
+            -not $ownershipPathNow.Main.Equals($selection.MainLandmark.Element) -or
+            -not $ownershipPathNow.Region.Equals($selection.ConversationRegion.Element)) {
+            return [pscustomobject]@{ Status='OWNERSHIP_EVIDENCE_STALE'; Composer=$null; SendButton=$null; TraversalStarted=$true; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
         }
         $mainRoleNow = Get-BridgeMainPanelRoleValue -Element $selection.MainLandmark.Element -LandmarkProperty $landmarkProperty
         $regionRoleNow = Get-BridgeMainPanelRoleValue -Element $selection.ConversationRegion.Element -LandmarkProperty $landmarkProperty
         if ($mainRoleNow -ne 'Main' -or $regionRoleNow -ne 'Region' -or
             [string]$selection.ConversationRegion.Element.Current.Name -cne 'Conversation') {
-            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='CALLER_ASSERTED'; MainConversationIdentity='UNRESOLVED' }
+            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
         }
 
         $composerElement = $selection.Composer.Element
@@ -314,7 +511,7 @@ function Get-BridgeMainPanelControls {
             BoundingRectangle = $null
         }
         if ([string]$composerElement.Current.Name -cne 'Ask ChatGPT') {
-            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='CALLER_ASSERTED'; MainConversationIdentity='UNRESOLVED' }
+            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
         }
         $documentRectNow = $DocumentElement.Current.BoundingRectangle
         $freshDocumentRect = [pscustomobject]@{Left=$documentRectNow.Left;Top=$documentRectNow.Top;Right=$documentRectNow.Right;Bottom=$documentRectNow.Bottom}
@@ -323,7 +520,7 @@ function Get-BridgeMainPanelControls {
         $freshComposerDecision = Select-BridgeMainComposerCandidate -MainDocumentOwnershipEstablished $true `
             -EnumerationComplete $true -MetadataFresh $true -MetadataComplete $true -DocumentGeometry $freshDocumentRect -Candidates @($freshComposer)
         if ($freshComposerDecision.Status -ne 'SELECTED') {
-            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='CALLER_ASSERTED'; MainConversationIdentity='UNRESOLVED' }
+            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
         }
 
         $sendElement = $selection.SendButton.Element
@@ -331,11 +528,26 @@ function Get-BridgeMainPanelControls {
         if ($sendElement.Current.ControlType -ne [System.Windows.Automation.ControlType]::Button -or
             [string]$sendElement.Current.Name -cne 'Send' -or -not [bool]$sendElement.Current.IsEnabled -or
             [bool]$sendElement.Current.IsOffscreen -or $sendPatternsNow -notcontains 'InvokePatternIdentifiers.Pattern') {
-            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='CALLER_ASSERTED'; MainConversationIdentity='UNRESOLVED' }
+            return [pscustomobject]@{ Status='UIA_TARGET_CHANGED'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
         }
     } catch {
-        return [pscustomobject]@{ Status='STALE_UIA_ELEMENT'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='CALLER_ASSERTED'; MainConversationIdentity='UNRESOLVED' }
+        return [pscustomobject]@{ Status='STALE_UIA_ELEMENT'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
     }
 
-    return [pscustomobject]@{ Status='SELECTED'; Composer=$selection.Composer; SendButton=$selection.SendButton; TraversalStarted=$true; SnapshotOnly=$true; OwnershipSource='CALLER_ASSERTED'; MainConversationIdentity='UNRESOLVED' }
+    $finalSnapshotStatus = Get-BridgeMainPanelFinalRegionSnapshot -RegionElement $selection.ConversationRegion.Element `
+        -DocumentElement $DocumentElement -OriginalComposer $selection.Composer -OriginalSend $selection.SendButton `
+        -MaximumNodes $MaximumNodes -MaximumDepth $MaximumDepth
+    if ($finalSnapshotStatus -ne 'FINAL_SNAPSHOT_VERIFIED') {
+        return [pscustomobject]@{ Status=$finalSnapshotStatus; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
+    }
+    $ownershipPathFinal = Get-BridgeMainPanelHumanAnchorPath -WindowRoot $OwnershipEvidence.WindowRoot `
+        -HumanAnchor $OwnershipEvidence.HumanAnchor -ExpectedWindowHandle $OwnershipEvidence.WindowHandle
+    if ($ownershipPathFinal.Status -ne 'HUMAN_ANCHOR_VERIFIED' -or
+        -not $ownershipPathFinal.Document.Equals($DocumentElement) -or
+        -not $ownershipPathFinal.Main.Equals($selection.MainLandmark.Element) -or
+        -not $ownershipPathFinal.Region.Equals($selection.ConversationRegion.Element)) {
+        return [pscustomobject]@{ Status='OWNERSHIP_EVIDENCE_STALE'; Composer=$null; SendButton=$null; TraversalStarted=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
+    }
+
+    return [pscustomobject]@{ Status='SELECTED'; Composer=$selection.Composer; SendButton=$selection.SendButton; TraversalStarted=$true; SnapshotOnly=$true; OwnershipSource='HUMAN_ANCHORED'; MainDesktopBound=$false; MainConversationIdentity='UNRESOLVED' }
 }
