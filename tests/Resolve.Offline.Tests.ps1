@@ -46,11 +46,50 @@ Assert-ResolveTest (-not (Test-BridgeTitleInput '')) 'blank title'
 Assert-ResolveTest (-not (Test-BridgeTitleInput '  ')) 'whitespace title'
 Assert-ResolveTest (-not (Test-BridgeTitleInput ("Bad"+[char]10+"Title"))) 'newline rejected'
 Assert-ResolveTest (-not (Test-BridgeTitleInput ('x'*121))) 'overlength title'
+$menuSnapshot=[pscustomobject]@{
+    DocumentVerified=$true;ExpandCollapseState='Expanded';TargetRowCount=1;ActionButtonCount=1;TargetStable=$true;ControlsFresh=$true
+    MenuContainerCount=1;MenuCandidateCount=1;CorrectMenuAncestry=$true
+    ItemVisible=$true;ItemEnabled=$true;ItemInvokable=$true
+}
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $menuSnapshot) -eq 'OK') 'expanded state permits valid associated menu'
+$collapsedSnapshot=$menuSnapshot | Select-Object *
+$collapsedSnapshot.ExpandCollapseState='Collapsed'
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $collapsedSnapshot) -eq 'OK') 'collapsed state permits verified visible-menu postcondition'
+$case=$menuSnapshot | Select-Object *; $case.MenuCandidateCount=0
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_OWNERSHIP_UNVERIFIED') 'no associated item fails closed'
+$case=$menuSnapshot | Select-Object *; $case.DocumentVerified=$false
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_DOCUMENT_MISMATCH') 'item under unrelated document rejected'
+$case=$menuSnapshot | Select-Object *; $case.CorrectMenuAncestry=$false
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_OWNERSHIP_UNVERIFIED') 'wrong Chat actions ancestry rejected'
+$case=$menuSnapshot | Select-Object *; $case.MenuCandidateCount=2
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_ITEM_AMBIGUOUS') 'duplicate menu candidates rejected'
+foreach($field in @('ItemEnabled','ItemVisible','ItemInvokable')){
+    $case=$menuSnapshot | Select-Object *; $case.$field=$false
+    Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_ITEM_UNAVAILABLE') ($field+' failure rejected')
+}
+$case=$menuSnapshot | Select-Object *; $case.TargetRowCount=2
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'SIDEBAR_TARGET_AMBIGUOUS') 'duplicate ARM sidebar rows rejected'
+$case=$menuSnapshot | Select-Object *; $case.ActionButtonCount=2
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'CHAT_ACTIONS_AMBIGUOUS') 'ambiguous action buttons rejected'
+$case=$menuSnapshot | Select-Object *; $case.TargetStable=$false
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_TARGET_CHANGED') 'changed target rejected before invocation'
+$case=$menuSnapshot | Select-Object *; $case.ControlsFresh=$false
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_CONTROLS_STALE') 'stale controls rejected before invocation'
+$case=$menuSnapshot | Select-Object *; $case.MenuContainerCount=2
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_POPUP_AMBIGUOUS') 'duplicate popup containers rejected'
 $source=[System.IO.File]::ReadAllText((Join-Path $root 'src/Bridge.Resolve.ps1'))
 Assert-ResolveTest ($source.Contains('if(-not $OpenInBrowser)')) 'preflight-by-default present'
 Assert-ResolveTest ($source.Contains("Status='PREFLIGHT_PASS'")) 'preflight terminal status present'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'SIDEBAR_TARGET_AMBIGUOUS'")) 'duplicate titles rejected'
-Assert-ResolveTest ($source.Contains("Stop-Resolve 'MENU_ITEM_AMBIGUOUS'")) 'menu ambiguity rejected'
+Assert-ResolveTest ($source.Contains('if($menuStatus -ne ''OK'')')) 'associated-menu decision must pass before invocation'
+Assert-ResolveTest ($source.Contains('Get-ResolveAssociatedMenu $document')) 'menu item search is scoped to verified main document'
+Assert-ResolveTest ($source.Contains('$parent.Current.Name -ceq ''Chat actions''')) 'menu ancestry must include Chat actions'
+Assert-ResolveTest ($source.Contains('Get-ResolveAssociatedMenu $freshDocument')) 'menu and target revalidated immediately before invocation'
+Assert-ResolveTest ($source.Contains('GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()')) 'only freshly revalidated item is invoked'
+Assert-ResolveTest ($source.Contains('MenuStateMismatch         = $false')) 'sanitized state mismatch field is present'
+$freshGateAt=$source.IndexOf("if(`$freshStatus -ne 'OK')")
+$invokeAt=$source.IndexOf('$freshMenu.Item.GetCurrentPattern')
+Assert-ResolveTest ($freshGateAt -ge 0 -and $invokeAt -gt $freshGateAt) 'failed ownership or identity checks precede and prevent invocation'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_ALREADY_ON_EXPECTED_ID'")) 'initial match must not imply action evidence'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_BASELINE_NOT_VERIFIED' 'BROWSER_BASELINE'")) 'invocation requires a verified existing browser conversation'
 Assert-ResolveTest ($source.Contains('if($obs.ConversationId -ne $expected){continue}')) 'expected ID comparison mandatory'

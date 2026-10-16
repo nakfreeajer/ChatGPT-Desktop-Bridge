@@ -64,6 +64,13 @@ Experimental UI Automation research on a live Windows desktop session; **not an 
 - A UIA race or unexpected ChatGPT Desktop update may cause false negatives or unforeseen menu behavior; no unattended or production use is qualified. Browser tab transitions during UIA polling are not guaranteed detectable between snapshots.
 - The browser URL and ID are compared only in memory; output omits titles, private IDs, URLs, and UIA RuntimeIds. No composer writes, keyboard SendKeys or chat Send invocation is implemented.
 
+## M02-D.15D/E menu association limitation and correction
+
+- A human-opened popup was observed in UIA under a `Menu` named `Chat actions` and the ARM `Document`, alongside one unique ARM sidebar row and action button. This supports a **document-scoped popup association** for the observed UI state. It does not expose a proven permanent/direct ownership link from that popup to a particular button.
+- The resolver's bounded correction scopes the item query to the title-verified ARM document, requires the item's ancestry to include its `Chat actions` Menu, and validates uniqueness, visibility, enabled state, and InvokePattern. It rechecks the target row/button and item immediately before the existing invocation; missing ephemeral RuntimeIds fail closed.
+- The `Expand()` operation remains single-shot. If it does not report `Expanded` but the associated visible menu postcondition is valid, the sanitized result records `MenuStateMismatch=true`; invalid or ambiguous ownership still fails closed.
+- M02-D.15E's 127/127 Windows PowerShell offline assertions establish syntax/helper/source guards only. The corrected path has not been exercised against a live menu, and this offline milestone does not qualify a live invocation. `MainDesktopBound=false` remains unchanged.
+
 ## BRIDGE.CODEX.BASELINE.1B supervised launcher
 
 - `src/Bridge.Resolve.Supervised.ps1` requests the independently verified ARM UUID with `Read-Host -AsSecureString`, rejects redirected/noninteractive input, validates with the existing UUID helper, and converts the secure value only in the current Windows PowerShell process. The temporary BSTR is zeroed and the SecureString disposed.

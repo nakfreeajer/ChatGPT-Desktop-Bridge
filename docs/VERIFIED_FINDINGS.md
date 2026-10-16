@@ -32,6 +32,8 @@ These observations extend the 2026-10-15 initial findings above; their PASS clas
 | M02-D.6–10 | First query without assured menu visibility found 0; delayed query found 1 visible enabled Invoke-capable menu item; target `Chat actions` had ExpandCollapsePattern; opening menu exposed unique menu item | Menu discovery and expansion only |
 | M02-D.11–12 | UIA invoked unique `Open on chatgpt.com` MenuItem; separate browser inspection verified expected saved ID and stable selected tab, with two tabs visible | Menu invocation and subsequent ID check were separate experiments |
 | M02-D.13 offline | Windows PowerShell: `Identity` 18/18 PASS; `TabGuard` 20/20 PASS; `Resolve` 33/33 PASS; **71/71 total** | Script syntax/pure helper/source guards only; integrated live preflight/invocation not yet run |
+| M02-D.15D | Human opened ARM Chat actions menu; UIA captured one visible enabled `Open on chatgpt.com` item beneath a `Menu` named `Chat actions`, under the ARM Document | Document-scoped popup association observed; no permanent/direct button ownership property established |
+| M02-D.15E offline | Windows PowerShell 5.1: Identity 18/18; TabGuard 20/20; Resolve 54/54; SupervisedLauncher 35/35; **127/127 total** | Offline-only regression qualification of bounded menu association; no live expansion/invocation in this milestone |
 
 ### Current outstanding verification
 

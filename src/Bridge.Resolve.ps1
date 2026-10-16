@@ -20,6 +20,7 @@ $result = [ordered]@{
     Stage                     = 'PREFLIGHT'
     MainTitleVerified         = $false
     SidebarCandidateUnique    = $false
+    MenuStateMismatch         = $false
     MenuItemInvoked           = $false
     BrowserIdentityVerified   = $false
     BrowserDocumentVerified   = $false
@@ -72,6 +73,15 @@ function Assert-ResolveMainDocument {
     if (-not [string]::Equals([string]$main[0].Current.Name, $Title,[System.StringComparison]::Ordinal)) {
         Stop-Resolve 'MAIN_TITLE_MISMATCH' 'MAIN_DOCUMENT'
     }
+    return $main[0]
+}
+function Get-ResolveRuntimeKey {
+    param($Element)
+    try {
+        $ids=$Element.GetRuntimeId()
+        if($null -eq $ids -or $ids.Length -eq 0){return ''}
+        return [string]::Join(':',[string[]]$ids)
+    } catch { return '' }
 }
 function Get-ResolveSidebarActions {
     param($Root,[string]$Title)
@@ -101,7 +111,65 @@ function Get-ResolveSidebarActions {
         }
     }
     if($usable.Count -ne 1){Stop-Resolve 'CHAT_ACTIONS_AMBIGUOUS' 'SIDEBAR'}
-    return $usable[0]
+    return [pscustomobject]@{Row=$items[0];Button=$usable[0]}
+}
+function Get-ResolveAssociatedMenu {
+    param($Document)
+    try {
+        $menuType=[System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::ControlTypeProperty,
+            [System.Windows.Automation.ControlType]::Menu
+        )
+        $menuName=[System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::NameProperty,'Chat actions'
+        )
+        $menuCondition=[System.Windows.Automation.AndCondition]::new($menuType,$menuName)
+        $menus=$Document.FindAll([System.Windows.Automation.TreeScope]::Descendants,$menuCondition)
+        $validMenus=@()
+        for($i=0;$i -lt $menus.Count;$i++){
+            $m=$menus.Item($i)
+            if(-not $m.Current.IsOffscreen -and $m.Current.IsEnabled){$validMenus+=,$m}
+        }
+        $itemName=[System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::NameProperty,'Open on chatgpt.com'
+        )
+        $items=$Document.FindAll([System.Windows.Automation.TreeScope]::Descendants,$itemName)
+        $candidates=@()
+        for($i=0;$i -lt $items.Count;$i++){
+            $item=$items.Item($i)
+            if($item.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem){$candidates+=,$item}
+        }
+        $associated=@()
+        foreach($item in $candidates){
+            $parent=[System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($item)
+            $ownerMenu=$null
+            for($depth=0;$depth -lt 32 -and $null -ne $parent;$depth++){
+                if((Get-ResolveRuntimeKey $parent) -ceq (Get-ResolveRuntimeKey $Document)){break}
+                if($parent.Current.ControlType -eq [System.Windows.Automation.ControlType]::Menu -and
+                    $parent.Current.Name -ceq 'Chat actions'){$ownerMenu=$parent;break}
+                $parent=[System.Windows.Automation.TreeWalker]::ControlViewWalker.GetParent($parent)
+            }
+            if($null -ne $ownerMenu -and $validMenus.Count -eq 1){
+                $ownerKey=Get-ResolveRuntimeKey $ownerMenu
+                $containerKey=Get-ResolveRuntimeKey $validMenus[0]
+                if(-not [string]::IsNullOrWhiteSpace($ownerKey) -and $ownerKey -ceq $containerKey){$associated+=,$item}
+            }
+        }
+        $usable=@()
+        foreach($item in $associated){
+            if(-not $item.Current.IsOffscreen -and $item.Current.IsEnabled -and
+                $item.GetSupportedPatterns() -contains [System.Windows.Automation.InvokePattern]::Pattern){$usable+=,$item}
+        }
+        return [pscustomobject]@{
+            DocumentKey=(Get-ResolveRuntimeKey $Document)
+            MenuContainerCount=$validMenus.Count
+            MenuCandidateCount=$candidates.Count
+            AssociatedCount=$associated.Count
+            UsableCount=$usable.Count
+            Item=if($usable.Count -eq 1){$usable[0]}else{$null}
+            ItemKey=if($usable.Count -eq 1){Get-ResolveRuntimeKey $usable[0]}else{''}
+        }
+    } catch { return $null }
 }
 function Get-ResolveBrowserBar {
     param($Root)
@@ -173,10 +241,10 @@ try {
     $handle=Get-ResolveWindow
     $root=Get-ResolveRoot $handle
     $result.Stage='MAIN_DOCUMENT'
-    Assert-ResolveMainDocument $root $ConversationTitle
+    [void](Assert-ResolveMainDocument $root $ConversationTitle)
     $result.MainTitleVerified=$true
     $result.Stage='SIDEBAR'
-    $button=Get-ResolveSidebarActions $root $ConversationTitle
+    $target=Get-ResolveSidebarActions $root $ConversationTitle
 
     if(-not $OpenInBrowser){
         $result.Status='PREFLIGHT_PASS'
@@ -193,35 +261,74 @@ try {
 
         $result.Stage='EXPAND_MENU'
         # Reconfirm main document and target sidebar entry immediately before mutation.
-        Assert-ResolveMainDocument $root $ConversationTitle
-        $button=Get-ResolveSidebarActions $root $ConversationTitle
+        [void](Assert-ResolveMainDocument $root $ConversationTitle)
+        $target=Get-ResolveSidebarActions $root $ConversationTitle
+        $button=$target.Button
+        $targetRowKey=Get-ResolveRuntimeKey $target.Row
+        $targetButtonKey=Get-ResolveRuntimeKey $button
+        if([string]::IsNullOrWhiteSpace($targetRowKey) -or [string]::IsNullOrWhiteSpace($targetButtonKey)){
+            Stop-Resolve 'MENU_CONTROLS_STALE' 'EXPAND_MENU'
+        }
         $ep=$button.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
         if($ep.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed){
             $button.SetFocus()
             $ep.Expand()
             Start-Sleep -Milliseconds 350
         }
-        if($ep.Current.ExpandCollapseState -ne [System.Windows.Automation.ExpandCollapseState]::Expanded){
-            Stop-Resolve 'MENU_NOT_EXPANDED' 'EXPAND_MENU'
+        $expandStateAfter=$ep.Current.ExpandCollapseState
+        $document=Assert-ResolveMainDocument $root $ConversationTitle
+        $menu=Get-ResolveAssociatedMenu $document
+        if($null -eq $menu){Stop-Resolve 'MENU_CONTROLS_STALE' 'EXPAND_MENU'}
+        $snapshot=[pscustomobject]@{
+            DocumentVerified=($menu.DocumentKey -ne '')
+            TargetRowCount=1
+            ActionButtonCount=1
+            TargetStable=$true
+            ControlsFresh=$true
+            MenuContainerCount=$menu.MenuContainerCount
+            MenuCandidateCount=$menu.MenuCandidateCount
+            CorrectMenuAncestry=($menu.AssociatedCount -eq 1)
+            ItemVisible=($menu.UsableCount -eq 1)
+            ItemEnabled=($menu.UsableCount -eq 1)
+            ItemInvokable=($menu.UsableCount -eq 1)
+        }
+        $menuStatus=Test-BridgeAssociatedMenuSnapshot $snapshot
+        if($menuStatus -ne 'OK'){
+            if($menuStatus -eq 'MENU_ITEM_AMBIGUOUS' -and $menu.AssociatedCount -eq 0){$menuStatus='MENU_OWNERSHIP_UNVERIFIED'}
+            Stop-Resolve $menuStatus 'EXPAND_MENU'
+        }
+        if($expandStateAfter -ne [System.Windows.Automation.ExpandCollapseState]::Expanded){
+            $result.MenuStateMismatch=$true
         }
         $result.Stage='INVOKE_MENU_ITEM'
-        $mc=[System.Windows.Automation.PropertyCondition]::new(
-            [System.Windows.Automation.AutomationElement]::NameProperty,'Open on chatgpt.com'
-        )
-        $items=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,$mc)
-        $usable=@()
-        for($i=0;$i -lt $items.Count;$i++){
-            $item=$items.Item($i)
-            if($item.Current.ControlType -eq [System.Windows.Automation.ControlType]::MenuItem -and
-                $item.Current.IsEnabled -and -not $item.Current.IsOffscreen -and
-                $item.GetSupportedPatterns() -contains [System.Windows.Automation.InvokePattern]::Pattern){
-                $usable += $item
-            }
+        $freshRoot=Get-ResolveRoot $handle
+        $freshDocument=Assert-ResolveMainDocument $freshRoot $ConversationTitle
+        $freshTarget=Get-ResolveSidebarActions $freshRoot $ConversationTitle
+        $freshRowKey=Get-ResolveRuntimeKey $freshTarget.Row
+        $freshButtonKey=Get-ResolveRuntimeKey $freshTarget.Button
+        if([string]::IsNullOrWhiteSpace($freshRowKey) -or [string]::IsNullOrWhiteSpace($freshButtonKey) -or
+            $freshRowKey -cne $targetRowKey -or $freshButtonKey -cne $targetButtonKey){
+            Stop-Resolve 'MENU_TARGET_CHANGED' 'INVOKE_MENU_ITEM'
         }
-        if($usable.Count -ne 1){Stop-Resolve 'MENU_ITEM_AMBIGUOUS' 'INVOKE_MENU_ITEM'}
-        Assert-ResolveMainDocument $root $ConversationTitle
+        $freshMenu=Get-ResolveAssociatedMenu $freshDocument
+        if($null -eq $freshMenu){Stop-Resolve 'MENU_CONTROLS_STALE' 'INVOKE_MENU_ITEM'}
+        $freshSnapshot=[pscustomobject]@{
+            DocumentVerified=($freshMenu.DocumentKey -ne '')
+            TargetRowCount=1
+            ActionButtonCount=1
+            TargetStable=$true
+            ControlsFresh=($freshMenu.ItemKey -ne '' -and $freshMenu.ItemKey -ceq $menu.ItemKey)
+            MenuContainerCount=$freshMenu.MenuContainerCount
+            MenuCandidateCount=$freshMenu.MenuCandidateCount
+            CorrectMenuAncestry=($freshMenu.AssociatedCount -eq 1)
+            ItemVisible=($freshMenu.UsableCount -eq 1)
+            ItemEnabled=($freshMenu.UsableCount -eq 1)
+            ItemInvokable=($freshMenu.UsableCount -eq 1)
+        }
+        $freshStatus=Test-BridgeAssociatedMenuSnapshot $freshSnapshot
+        if($freshStatus -ne 'OK'){Stop-Resolve $freshStatus 'INVOKE_MENU_ITEM'}
         $result.MenuItemInvoked=$true
-        $usable[0].GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
+        $freshMenu.Item.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 
         $result.Stage='VERIFY_BROWSER_ID'
         $watch=[System.Diagnostics.Stopwatch]::StartNew()
@@ -230,7 +337,7 @@ try {
             Start-Sleep -Milliseconds 350
             try {
                 $root=Get-ResolveRoot $handle
-                Assert-ResolveMainDocument $root $ConversationTitle
+                [void](Assert-ResolveMainDocument $root $ConversationTitle)
                 $obs=Get-ResolveBrowserObservation -Handle $handle -Root $root
                 if($null -eq $obs){continue}
                 if($obs.ConversationId -ne $expected){continue}

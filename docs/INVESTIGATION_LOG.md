@@ -125,3 +125,11 @@ Offline Windows PowerShell 5.1 evidence: `SupervisedLauncher.Offline.Tests.ps1` 
 - M02-D.11 unique matching menu item's InvokePattern was exercised; diagnostic returned `MENU_ITEM_INVOKED`. That alone was **not** proof of browser destination identity.
 - M02-D.12 separate inspection of selected embedded browser tab reported `VERIFIED_BROWSER_ROUTE`, matching the independently captured expected conversation ID, stable selected tab, and two visible tabs. It did **not** indicate whether a new tab was created by M02-D.11.
 - M02-D.13 source integrates this chain but its live operation is **not** yet observed. Its `MainDesktopBound=false` designation remains correct.
+
+## M02-D.15D popup association and M02-D.15E correction (2026-10-16)
+
+- Human manually opened the ARM `Chat actions` popup; a read-only observer captured it after 460 ms. Exactly one ChatGPT window, ARM sidebar row, and ARM `Chat actions` button were present. The target button reported `Expanded`, and exactly one visible enabled `Open on chatgpt.com` MenuItem was found.
+- Captured ancestry was `MenuItem → Menu "Chat actions" → Group → Group → Document "Artifact Relay Manager" → panes → ChatGPT window`. This establishes a document-scoped association in that observed UIA tree. It does **not** prove a permanent or direct button-to-popup ownership property; RuntimeIds remain ephemeral.
+- M02-D.15E keeps the single existing `Expand()` operation, then finds the menu candidate only within the verified ARM document and requires the `Chat actions` Menu ancestry. It requires one popup container and one visible, enabled, InvokePattern-capable item. The fresh document, target row/button RuntimeIds, and associated item are rechecked immediately before invocation; missing target RuntimeIds fail closed.
+- A verified visible-menu postcondition is accepted if ExpandCollapseState does not report `Expanded`; `MenuStateMismatch` records this sanitized discrepancy. Missing, duplicate, stale, unrelated-document, wrong-ancestry, disabled, offscreen, or non-invokable controls fail closed.
+- Offline Windows PowerShell 5.1 results: Identity 18/18, TabGuard 20/20, Resolve 54/54, SupervisedLauncher 35/35; **127/127 assertions PASS**. These are parser, helper, and source-guard checks. No live expansion or invocation was performed for M02-D.15E.
