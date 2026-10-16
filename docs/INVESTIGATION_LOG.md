@@ -93,3 +93,29 @@ Added a read-only selected-tab stability gate to the navigation-only prototype. 
 ## M02-D.13 repository change (2026-10-16)
 
 Added `src/Bridge.Resolve.ps1` plus `src/Bridge.Resolve.Helpers.ps1` and `tests/Resolve.Offline.Tests.ps1`. The default is preflight only; `-OpenInBrowser` explicitly invokes the sidebar menu item. The script verifies main document/title, unique sidebar action and menu item, expected browser conversation ID, browser document, tab identity, and tab-transition category. It cannot submit chat messages. **No Windows offline or runtime test results have yet been received for M02-D.13.**
+
+## M02-D.13 Windows offline qualification — human report (2026-10-16)
+
+After fast-forwarding local `main` from `0454215` to `cfbf37f`, the human ran all three shipped offline test scripts from the repository root. Actual reported JSON:
+
+| Suite | Reported result | Assertions |
+|---|---|---:|
+| M02-A `Identity.Offline.Tests.ps1` | `PASS` | 18 |
+| M02-C `TabGuard.Offline.Tests.ps1` | `PASS` | 20 |
+| M02-D.13 `Resolve.Offline.Tests.ps1` | `PASS` | 33 |
+| **Total** | **3 suites PASS** | **71 / 71** |
+
+Evidence level: human-provided Windows PowerShell console output, not independently rerun in this repository. These are syntax/pure-helper and source-guard checks, **not** a live execution of the integrated M02-D.13 resolver.
+
+**Next unresolved test:** M02-D.13 live **preflight only** (`Bridge.Resolve.ps1` without `-OpenInBrowser`). After that passes, a separately bounded supervised `-OpenInBrowser` test can qualify the integrated menu-to-browser-ID verification sequence. Both are **PENDING**. No message submission is approved or implemented.
+
+## Evidence reconciliation: prior versus integrated behavior
+
+- M02-D.6 direct menu-name search returned `Matches=0` when menu visibility/focus was not secured; this was **inconclusive**, not proof that UIA cannot find the menu item.
+- M02-D.7 delayed inspection with sidebar three-dot menu open returned one enabled visible `ControlType.MenuItem` named `Open on chatgpt.com`, `HasInvoke=true`.
+- M02-D.8 the target sidebar `ListItem` was unique; it contained an invoke-capable title button, a `Chat actions` button without InvokePattern, and an invoke-capable `Unpin chat` control. **Unpin was not invoked.**
+- M02-D.9 `Chat actions` exposed ExpandCollapsePattern and ScrollItemPattern, no InvokePattern.
+- M02-D.10 UIA `Expand()` moved `Collapsed` to `Expanded`; exactly one `Open on chatgpt.com` menu item appeared; navigation was not attempted.
+- M02-D.11 unique matching menu item's InvokePattern was exercised; diagnostic returned `MENU_ITEM_INVOKED`. That alone was **not** proof of browser destination identity.
+- M02-D.12 separate inspection of selected embedded browser tab reported `VERIFIED_BROWSER_ROUTE`, matching the independently captured expected conversation ID, stable selected tab, and two visible tabs. It did **not** indicate whether a new tab was created by M02-D.11.
+- M02-D.13 source integrates this chain but its live operation is **not** yet observed. Its `MainDesktopBound=false` designation remains correct.
