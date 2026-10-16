@@ -1,68 +1,38 @@
 # Evidence and verified findings
 
-**Evidence grading:** “Observed” means user-provided command output or visual confirmation on 2026-10-15; “handover” means earlier session evidence described in the uploaded handover; “unverified” means not established by either. The repository's documentation does not independently execute tests.
+This is a concise current evidence summary. The detailed chronological failure, recovery, and correction record is [FAILURE_AND_RECOVERY_REGISTER.md](FAILURE_AND_RECOVERY_REGISTER.md); the [investigation log](INVESTIGATION_LOG.md) is its timeline index.
 
-| Finding | Evidence | Boundary |
+## Evidence labels
+
+- **OBSERVED:** a specific human-reported or executor-observed UI state/result; does not imply general reliability.
+- **SOURCE-VERIFIED:** confirmed in current local source; not runtime evidence by itself.
+- **OFFLINE-QUALIFIED:** shipped offline assertions pass; they do not interact with ChatGPT Desktop.
+- **LIVE-QUALIFIED — CONTROLLED:** one specified supervised UIA scenario completed as reported; not unattended or repeated-cycle qualification.
+- **INCONCLUSIVE / HYPOTHESIS:** available evidence does not establish the cause or outcome.
+- **UNRESOLVED:** no durable or trustworthy answer is established.
+
+## Current implementation and test evidence
+
+| Claim | Classification | Evidence / boundary |
 |---|---|---|
-| UIA exposed top-level ChatGPT window and web-view accessibility tree | Handover + observed later enumerations | Live session only; PID/window handle ephemeral |
-| Sidebar ListItem/child Button representation supports invoking navigation | Handover, observed metadata | No durable target ID found |
-| Visible Edit composer supports insertion; Send Button InvokePattern can submit | Handover, human-confirmed | Already-open destination only; no production-safe routing |
-| Three known pinned conversations appeared as ListItem and Button, with active title elsewhere too | Observed | Title matching alone ambiguous |
-| Sidebar Button AutomationId/HelpText/ItemStatus/ItemType/AccessKey/LabeledBy were empty | Observed | Applies to three inspected buttons, not all versions |
-| UIA RuntimeId values differed | Observed | Not proven stable across controls, navigation, restart, or updates |
-| Embedded browser could show a conversation-specific `/c/<uuid-style-id>` path | Observed manually | Opening web view can be independent of main Desktop conversation |
-| Embedded address ComboBox supported ValuePattern and TextPattern | Observed | Not proof of address value completeness until focused |
-| Address value while unfocused was `chatgpt.com` (11 chars) in both patterns | Observed | Specific inspected browser state |
-| Address value after UIA SetFocus was 58 chars, both patterns matching conversation URL | Observed | Focus changes UI state; not a permanently readable background value |
-| Extracted browser ID matched previously manually captured ID | Observed | Verifies known browser conversation only; not sidebar identity binding |
+| `Bridge.Identity.ps1`, `Bridge.TabGuard.ps1`, resolver helpers and current resolver/launcher syntax and offline assertions pass. | **OFFLINE-QUALIFIED** | Windows PowerShell 5.1: Identity 18/18, TabGuard 20/20, Resolve 87/87, SupervisedLauncher 42/42; **167/167 total**. See [PowerShell test commands](POWERSHELL_TEST_COMMANDS.md). |
+| The resolver is inspect-only by default; `-OpenInBrowser` is an explicit one-menu-invocation path with title/sidebar/menu ownership checks, supplied expected UUID comparison, selected-tab verification, document verification and transition reporting. | **SOURCE-VERIFIED** | One bounded `Expand()`, document-scoped `Chat actions` menu ancestry, fresh target/menu validation, bounded address reader and corrected horizontal document containment. See [architecture](ARCHITECTURE.md). |
+| One human-run M02-D.15P supervised run returned `PASS` / `COMPLETE` / `MENU_TO_BROWSER_ID_VERIFIED`; browser ID/document and tab stability passed. | **LIVE-QUALIFIED — CONTROLLED** | Human-reported; `BrowserTabTransition=EXISTING_TAB_ACTIVATED`, two tabs visible. No new-tab assumption; `MainDesktopBound=false`; no composer write or Send; delivery not assessed. |
+| M02-D.15O read-only inspection recognized exactly one qualifying loaded ARM browser document after the geometry correction. | **OBSERVED — EXECUTOR** | One window and address bar, one selected ARM tab among two visible tabs, parser success, stable tab snapshot, and one qualifying browser document. No menu action or navigation. |
+| The corrected document geometry handles the observed 228 px left offset without dropping the title, containment, placement, visibility, width or unique-match checks. | **OBSERVED + OFFLINE-QUALIFIED** | M02-D.15M geometry diagnosis and M02-D.15N synthetic regressions; offline aggregate 167/167. The correction was subsequently exercised by M02-D.15O. |
 
+## Historical observations with limits
 
-## Subsequent human-observed controlled findings — 2026-10-16
+- The address bar can expose only the origin before focus. A controlled timing run saw the conversation route appear by about 250 ms after one focus operation; the selected tab/count stayed stable. The bounded 2 s / 125 ms reader is **SOURCE-VERIFIED / OFFLINE-QUALIFIED**. Historical failure causality remains unknown.
+- A human-opened `Chat actions` popup was observed under a `Menu` named `Chat actions` and the ARM document. This supports document-scoped association in that UI tree; a permanent/direct button-to-popup ownership property was not established.
+- A menu that visually opened once was rejected by a state-only resolver check; a later UIA observation established `Expanded` and one valid menu item. The visible-menu postcondition correction preserves the single expansion and fails closed on ambiguous association.
+- A loaded ARM browser document once failed the old left-edge tolerance. UIA measurements established that predicate as the cause of that particular false negative. The earlier M02-D.15J `BROWSER_DESTINATION_UNVERIFIED` cause remains unestablished.
 
-These observations extend the 2026-10-15 initial findings above; their PASS classifications apply **only to the specific human-run scenario**, not to reliability across installations, app versions, or unattended operation.
+## Unresolved and unqualified
 
-| Milestone / test | Human-observed evidence | Qualification boundary |
-|---|---|---|
-| M01-H–J | Browser autocomplete required a focused suggestion ListItem plus verified foreground before Enter; post-navigation expected URL and `RootWebArea` editor ancestry matched | Browser-only navigation, not immutable main Desktop identity |
-| M02-A | 18/18 offline tests; read-only home mismatch rejected; opt-in navigation returned `NavigationAttempted=true`, expected URL and editor verified | Single controlled browser navigation happy path |
-| M02-B | Sidebar conversation ListItems did not expose SelectionItemPattern; two separately named `RootWebArea` documents could appear in one UIA top-level window | Document titles/geometries identify regions, not immutable IDs |
-| M02-B | Embedded browser supported two TabItem controls with exactly one selected; selected blank tab yielded empty address, selected known conversation yielded 58-character URL | Selected-tab-to-address correlation under observed UI |
-| M02-C | 20/20 offline tests; single-tab positive inspection and opt-in navigation PASS; selected blank second tab returned ID mismatch without navigation and reported `VisibleBrowserTabs=2` | No deliberate mid-navigation tab-switch race qualification |
-| M02-D.1–5 | Desktop sidebar `Open on chatgpt.com` manual action produced a browser URL; private baseline ID matched on recovery after deliberate browser mismatch | Manual title-anchored identity recovery, not general permanent binding |
-| M02-D.6–10 | First query without assured menu visibility found 0; delayed query found 1 visible enabled Invoke-capable menu item; target `Chat actions` had ExpandCollapsePattern; opening menu exposed unique menu item | Menu discovery and expansion only |
-| M02-D.11–12 | UIA invoked unique `Open on chatgpt.com` MenuItem; separate browser inspection verified expected saved ID and stable selected tab, with two tabs visible | Menu invocation and subsequent ID check were separate experiments |
-| M02-D.13 offline | Windows PowerShell: `Identity` 18/18 PASS; `TabGuard` 20/20 PASS; `Resolve` 33/33 PASS; **71/71 total** | Script syntax/pure helper/source guards only; integrated live preflight/invocation not yet run |
-| M02-D.15D | Human opened ARM Chat actions menu; UIA captured one visible enabled `Open on chatgpt.com` item beneath a `Menu` named `Chat actions`, under the ARM Document | Document-scoped popup association observed; no permanent/direct button ownership property established |
-| M02-D.15E offline | Windows PowerShell 5.1: Identity 18/18; TabGuard 20/20; Resolve 54/54; SupervisedLauncher 35/35; **127/127 total** | Offline-only regression qualification of bounded menu association; no live expansion/invocation in this milestone |
-| M02-D.15H-R1 | One focused address read was `ORIGIN_ONLY` immediately, then `CONVERSATION_URL` at about 250 ms and 750 ms; UUID parsing succeeded only after the URL appeared; selected-tab RuntimeId/count stayed stable | Single supervised timing observation; explains a plausible race, but not the exact value from the earlier failed run |
-| M02-D.15I offline | Windows PowerShell 5.1: Identity 18/18, TabGuard 20/20, Resolve 71/71, SupervisedLauncher 42/42; **151/151 total**. Shared two-second/125 ms address polling, stable-tab checks around reads, one focus per operation | No live test; parseable URL remains separate from expected-ID match; prior 127 assertions preserved |
-| M02-D.15M/N | UIA found two ARM-titled RootWebArea Documents; the embedded browser document passed all observed predicates except the old 60 px left-edge tolerance, starting 228 px left of the address bar. M02-D.15N uses horizontal document containment of the address bar, retaining below-bar, width, title, visibility, RootWebArea and uniqueness checks. Offline suites: Identity 18, TabGuard 20, Resolve 87, SupervisedLauncher 42; **167/167 total** | Geometry false negative verified in the observed live layout; correction qualified offline only, with no new live run |
-| M02-D.15O | Read-only UIA check found one ChatGPT window, one address bar, two visible tabs with one selected ARM tab, a parseable conversation URL, stable tab selection, and exactly one visible ARM browser document passing corrected title/geometry predicates | `LIVE_DOCUMENT_VERIFIED`; no menu invocation or navigation in this diagnostic |
-| M02-D.15P | Accepted human-run supervised launcher result: preconditions passed; menu item invoked once; expected browser identity and document verified; selected tab remained stable; `EXISTING_TAB_ACTIVATED`; two tabs visible; resolver `MENU_TO_BROWSER_ID_VERIFIED` | `PASS_CONTROLLED_INTEGRATED`; controlled browser correlation, not durable main-Desktop identity binding. No composer write or Send; delivery not assessed |
+- Permanent binding of the separate main Desktop conversation to the expected immutable ID: **UNRESOLVED**. `MainDesktopBound=false` is required.
+- Cloudflare as cause of M02-D.15J: **HYPOTHESIS**, not proven. No challenge bypass/automation is implemented.
+- Multiple-window routing; duplicate, renamed, reordered, hidden or stale sidebar targets; app/session restart/update behavior; locked/unavailable sessions; mid-operation focus/tab races; repeated-run reliability: **UNQUALIFIED**.
+- Message insertion/submission, server receipt, delivery acknowledgement, idempotency, duplicate prevention and uncertain-result recovery: **NOT IMPLEMENTED / NOT QUALIFIED**. No current milestone authorizes message submission.
 
-### Current outstanding verification
-
-- Integrated menu-to-browser-ID path: **PASS_CONTROLLED_INTEGRATED** for the single supervised M02-D.15P scenario. Broader unattended reliability and repeatability remain **UNQUALIFIED**.
-- Linking the main Desktop conversation to a durable immutable ID independently of a mutable sidebar title: **UNRESOLVED**.
-- Multiple-window routing, duplicate titles, renames, app restarts/updates, selected-tab focus races and lifecycle failures: **UNQUALIFIED**.
-- Safe delivery/acknowledgement/deduplication: **NOT IMPLEMENTED**. No messages were submitted in M02-A–D qualification.
-
-## Confidence rules
-
-- **PASS — experimental:** A specific human-run diagnostic produced the expected result in the observed session.
-- **NOT FOUND:** A property or identifier was not exposed in the inspected controls; this is not proof no other possible identity mechanism exists.
-- **BLOCKED:** Production routing cannot proceed without destination verification.
-- **UNVERIFIED:** Neither a successful nor failed qualification was performed.
-
-## Explicitly not verified
-
-- That the main Desktop conversation and embedded browser conversation are the same.
-- That the embedded browser can always be opened, controlled, or trusted unattended.
-- That a title, CSS class, UIA RuntimeId, radial-generated AutomationId, or inferred sidebar order is a durable conversation key.
-- That a conversation-specific URL remains stable across session termination, app restart, rename, or platform changes; the format and one same-session known-ID comparison were demonstrated, not lifecycle persistence.
-- That a UIA Send invocation proves receipt by ChatGPT services or ensures no duplicates.
-- That using UIA for this purpose is officially supported or permitted under every relevant application term.
-
-## Privacy in evidence
-
-The actual manually observed conversation identifier, user-specific project names, full UI content, message bodies, and personal data are deliberately omitted from public source-controlled logs. Use placeholders in reproducibility examples.
+Never treat offline assertions, a title match, UIA RuntimeId, URL parseability alone, or a one-run controlled PASS as production identity or delivery proof. See the [full register](FAILURE_AND_RECOVERY_REGISTER.md) for the chronology and evidence source for each milestone.

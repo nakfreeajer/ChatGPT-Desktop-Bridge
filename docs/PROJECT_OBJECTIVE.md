@@ -1,8 +1,8 @@
 # Project objective and boundary
 
 **Project:** ChatGPT Desktop Bridge  
-**Evidence date:** 2026-10-15  
-**Stage:** Documentation-only experimental proof of concept.
+**Evidence date:** 2026-10-16
+**Stage:** Experimental proof of concept; one supervised integrated browser-identity run passed, but durable main Desktop identity binding and message delivery remain unqualified.
 
 ## Objective
 
@@ -40,4 +40,4 @@ These are **desired future capabilities**, not an assertion of implementation or
 - Duplicate-request and ambiguous-result behavior is characterized without producing duplicate messages.
 - Supported app versions, interactive-session requirements, restart behavior, and terms/security limitations are documented.
 
-Nothing in the 2026-10-15 investigation satisfies these production acceptance gates yet.
+The M02-D.15P controlled browser-verification run does not satisfy these production acceptance gates: it does not establish permanent main Desktop identity binding, race/lifecycle reliability, or message-delivery semantics.

@@ -1,47 +1,42 @@
 # Next milestones and decision gates
 
-**BRIDGE.M02-D.15P update (2026-10-16):** The supervised launcher completed one human-run controlled integrated qualification with `PASS_CONTROLLED_INTEGRATED`. The existing ARM browser tab was activated and verified. This does not establish durable main-Desktop identity binding; message submission remains unimplemented and unauthorized.
+**Updated:** 2026-10-16, after BRIDGE.M02-D.15P.CLOSE and documentation consolidation. M02-D.15P passed one human-supervised integrated qualification. This is not approval for more live testing, message submission, unattended use or production release.
 
-**Initial evidence date:** 2026-10-15. **Updated:** 2026-10-16 (M02-D.13 offline qualification). **Authority:** owner approved M00 documentation and separately approved **BRIDGE.M02-A navigation-only implementation**. No message insertion/submission, unattended release, other-repository changes, credentials, CDP or API integration is approved.
+## Current milestone status
 
-| Milestone | Current status | Scope / exit condition |
+| Milestone | Status | Evidence and boundary |
 |---|---|---|
-| BRIDGE.M00 — Preserve findings | COMPLETE — documentation-only bootstrap committed and GitHub file listing verified on 2026-10-15 | Store project objective, tested findings, corrected diagnostic reference, limits, and roadmap |
-| BRIDGE.M01 — Stable identity | Browser-route experiments PASS (2026-10-16); native Desktop binding unresolved | URL extraction, URL injection, focused suggestion + Enter navigation (human-observed), post-navigation expected URL check, and editor's RootWebArea ancestry were demonstrated. These findings apply to the **embedded browser** only |
-| BRIDGE.M02-A — Navigation-only prototype | PASS_CONTROLLED_HAPPY_PATH (human-run) | 18/18 offline assertions; home-screen inspection mismatch reported without navigation; controlled opt-in home-to-CDLD navigation reported NavigationAttempted=true and verified expected browser URL/editor. Not unattended-qualified |
-| BRIDGE.M02-B — Read-only browser tab discovery | PASS_OBSERVED_SCOPE (human-run) | TabItem discovery/selection for one then two tabs, blank second-tab address EMPTY, selected CDLD tab conversation URL length 58, and inspection-only mismatch on blank tab; main Desktop immutable identity remains unresolved |
-| BRIDGE.M02-C — Selected-tab stability guard | PASS_CONTROLLED_SINGLE_TAB_NAVIGATION and PASS_TWO_TAB_NEGATIVE (human-run) | 20/20 new offline tests, supervised single-tab ID/editor/tab checks, home-to-CDLD navigation with selected-tab stability, two-tab wrong-ID rejection; no deliberate mid-navigation tab switch |
-| BRIDGE.M02-D.1–12 — Manual to automated menu path | PASS_CONTROLLED_OBSERVATION (human-run) | ARM main-panel title and browser title both visible; manual ARM URL baseline captured; CDLD browser ID mismatch rejected; sidebar Chat actions ExpandCollapse and Open on chatgpt.com Invoke verified; browser ID matched ARM baseline in selected tab |
-| BRIDGE.M02-D.13 — Integrated menu-to-browser-ID verifier | PASS_CONTROLLED_INTEGRATED via M02-D.15P; current offline regression suites 167/167 | One supervised run verified the unique sidebar action, expected browser ID, document and stable selected tab. The existing tab was activated; no message was sent. General repeatability and permanent main-Desktop binding remain unqualified |
-| BRIDGE.M02-D.15E — Associated menu verification regression | OFFLINE_QUALIFIED (54/54 Resolve; 127/127 all suites); LIVE INVOCATION NOT RUN | Single Expand preserved; document-scoped Chat actions ancestry, unique visible/enabled/invokable item, and fresh target/item validation before invocation |
-| BRIDGE.M02-D.15I — Delayed browser-address availability | OFFLINE_QUALIFIED (151/151; 24 added; prior 127 preserved); LIVE NOT RUN | Shared two-second/125 ms ValuePattern poll; one focus per operation; selected-tab RuntimeId/count checked around each read; URL parsing and expected-ID comparison remain separate |
-| BRIDGE.M02-D.15N — Browser-document geometry | OFFLINE_QUALIFIED (167/167 all suites); commit `8231d97` | Horizontal address-bar containment replaces the disproven left-edge tolerance; title, visibility, placement, width, uniqueness, UUID and tab safeguards retained |
-| BRIDGE.M02-D.15O — Live document verification | LIVE_DOCUMENT_VERIFIED | Exactly one qualifying ARM embedded-browser document; selected tab stable; read-only diagnostic |
-| BRIDGE.M02-D.15P — Integrated supervised qualification | PASS_CONTROLLED_INTEGRATED (human-run, Architect accepted) | Existing ARM browser tab activated; expected browser identity/document and tab stability verified; `MainDesktopBound=false`; no composer write or Send |
-| BRIDGE.M03 — Guarded delivery | Proposed, not approved | Authorized disposable-target send only after identity gate qualified |
-| BRIDGE.M04 — Results / duplicates | Proposed, not approved | Defined acknowledgement levels, request IDs, idempotency and ambiguous-outcome recovery |
-| BRIDGE.M05 — Lifecycle qualification | Proposed, not approved | App restarts, updates, multiple windows, locked session, renamed/missing targets |
-| BRIDGE.M06 — Minimal local interface | Proposed, not approved | Thin callable library or executable; no orchestration |
-| BRIDGE.M07 — Release documentation | Proposed, not approved | Reproducible compatibility and security evidence, qualified PoC release |
+| BRIDGE.M00 | COMPLETE | Project boundary and initial records established. |
+| BRIDGE.M01 | Browser-route experiments passed for observed embedded-browser scenarios; durable main Desktop binding unresolved. | Browser URL/editor evidence does not bind the main panel. |
+| BRIDGE.M02-A | `PASS_CONTROLLED_HAPPY_PATH` | Offline Identity suite 18/18 and supervised inspection/navigation for the specific test state; not unattended-qualified. |
+| BRIDGE.M02-B | `PASS_OBSERVED_SCOPE` | Embedded browser tab selection, blank-tab behavior and address association observed. |
+| BRIDGE.M02-C | `PASS_CONTROLLED_SINGLE_TAB_NAVIGATION` and `PASS_TWO_TAB_NEGATIVE` | TabGuard offline suite 20/20 and controlled positive/negative browser scenarios. Mid-action race remains unqualified. |
+| BRIDGE.M02-D.1–12 | `PASS_CONTROLLED_OBSERVATION` | Menu mechanisms and browser ID comparison observed separately; no permanent main Desktop binding. |
+| BRIDGE.M02-D.13 | `PASS_CONTROLLED_INTEGRATED` through M02-D.15P | One supervised launcher run verified menu invocation, expected browser ID/document and stable selected tab. The observed transition activated an existing tab. |
+| BRIDGE.M02-D.15E | Offline-qualified at that milestone; its corrected menu path was included in later supervised M02-D.15P. | Single Expand, document-scoped `Chat actions` ancestry, unique visible/invokable item and fresh target checks. |
+| BRIDGE.M02-D.15I | Offline-qualified at that milestone; shared bounded address reader was exercised by later M02-D.15P. | One focus per read, bounded poll, selected-tab snapshots and separate expected-ID comparison. |
+| BRIDGE.M02-D.15N | `OFFLINE_QUALIFIED`; commit `8231d97f1cd276b76d0fd2a70bdc5133995d3277`. | Corrected browser-document horizontal containment while preserving identity, title, visibility, placement, width and uniqueness checks. |
+| BRIDGE.M02-D.15O | `LIVE_DOCUMENT_VERIFIED` | Read-only live UIA check found exactly one qualifying ARM browser document and stable selected tab. |
+| BRIDGE.M02-D.15P | `PASS_CONTROLLED_INTEGRATED` (human-run, Architect accepted) | Existing ARM browser tab activated; expected browser identity/document and tab stability verified. `MainDesktopBound=false`; no chat message submitted. |
 
-## Immediate recommended investigation (requires separate approval if it changes live UI)
+Current offline regression baseline: Identity 18/18, TabGuard 20/20, Resolve 87/87, SupervisedLauncher 42/42; **167/167**.
 
-Design a **bounded, read-first experiment** that tests automatic binding between a chosen Desktop conversation and its actual conversation ID. Use a disposable conversation and prove mismatch rejection. The embedded browser and main Desktop can diverge; simply reading a URL and matching a title is insufficient.
+## Remaining gates
 
-Start with evidence design, not a coding sprint. Desired negative tests include:
-- Browser tab is on conversation B while Desktop composer is on conversation A.
-- Duplicate sidebar titles exist.
-- Conversation gets renamed or hidden after discovery.
-- More than one ChatGPT Desktop main window is present.
-- Focus, navigation, or accessibility control becomes stale between verify and Send.
+- Durable binding from a chosen main Desktop conversation to its immutable ID; current status **UNRESOLVED**.
+- Multiple-window routing; duplicate, renamed, reordered, hidden or stale sidebar targets; app/session lifecycle and restart behavior.
+- Focus and selected-tab races between verification points; repeated-run and unattended reliability.
+- Post-navigation page-readiness status specificity. Cloudflare was reported during one failed run, but its causal role is **unproven**; no challenge detection or bypass is implemented.
+- Any future chat-message insertion/submission requires separate approval, disposable targets, identity and authorization review, delivery semantics, duplicate protection, and ambiguous-outcome recovery. Message submission is not implemented or authorized.
+
+## Proposed future work
+
+M03 guarded delivery, M04 result/duplicate handling, M05 lifecycle qualification, M06 a minimal local interface and M07 release documentation remain **proposed, not approved**. This document creates no implementation or live-test authorization.
 
 ## Decision register
 
-- **Approved:** M00 documentation bootstrap; M02-A navigation-only prototype; M02-C selected-tab safety; M02-D.13 bounded menu-to-browser-ID integration without message submission.
-- **Not approved:** automatic message submission, full production routing, background monitoring, other-repository changes, provisioning, or security-setting changes.
-- **Validation evidence:** M02-D.15P is accepted as one `PASS_CONTROLLED_INTEGRATED` supervised run; all current offline suites passed **167/167**. This controlled scenario is not unattended qualification. Multiple windows, duplicate/renamed conversations, app/session lifecycle changes, focus/tab races and message-delivery semantics remain unqualified or unimplemented.
-- **Blocking for production:** automatic durable target binding, ambiguity/race controls, delivery-result semantics, duplicate protection, lifecycle tests.
+- **Approved to date:** documentation bootstrap, M02-A navigation-only prototype, M02-C selected-tab safety, and bounded M02-D menu-to-browser-ID integration without message submission.
+- **Not approved:** chat-message submission, full production routing, unattended operation, background monitoring, other repositories, provisioning or security-setting changes.
+- **Next checkpoint:** Architect review of the consolidated evidence and the remaining identity-binding limitations. No further live UI operation is scheduled by this record.
 
-## Next human/Architect checkpoint
-
-Review the M02-D.15P controlled evidence and remaining identity-binding limitations. This record authorizes no additional live test or message submission.
+For the complete chronology and source-specific failure diagnoses, see [FAILURE_AND_RECOVERY_REGISTER.md](FAILURE_AND_RECOVERY_REGISTER.md).

@@ -1,91 +1,38 @@
-# Security, privacy and limitations
+# Security, privacy and qualification limits
 
-## Status
+## Current status
 
-Experimental UI Automation research on a live Windows desktop session; **not an officially supported integration or a production transport**. Application terms/support status was not established by the investigation.
+This is an experimental UI Automation proof of concept for a logged-in interactive Windows session. One human-supervised M02-D.15P menu-to-browser-ID run passed; this does not qualify unattended operation, a supported product integration, or production message transport. See the [failure/recovery register](FAILURE_AND_RECOVERY_REGISTER.md) for the evidence chronology.
 
-## Security controls
+## Identity and UIA safeguards
 
-1. **Fail closed.** Stop on multiple candidate windows, missing or ambiguous conversation, mismatched expected identifier, inaccessible UI, or uncertain delivery outcome.
-2. **No title-only delivery.** Visible titles are mutable and non-unique; UIA RuntimeId and CSS classes do not substitute for persistent identity.
-3. **Separate approval boundary.** External caller grants and records authorization. The Bridge must never infer broad consent from its ability to invoke controls.
-4. **Disposable test targets.** No automatic test messages to production Architect conversations without explicit human approval.
-5. **Least information.** Default logs: result code, sanitized stage, timestamp, elapsed time, and request-correlation token. Do not log message contents, personal labels, full URLs/IDs, cookies, auth tokens, browser page text, or other sensitive data.
-6. **No debugging security reduction.** Do not enable CDP remote-debugging ports/pipes or weaken app settings just to route messages.
-7. **No automatic retries on uncertainty.** A successful UIA Invoke is not a guaranteed completed server transaction; retries can duplicate messages.
-8. **App state constraints.** UIA relies on a usable interactive Windows session and valid accessibility controls. Locked screen, minimized/unrendered surfaces, app updates, accessibility-tree churn, and multiple windows remain unqualified.
-9. **Focus is a state change.** Calling SetFocus on the embedded browser's address bar changes keyboard focus; no navigation/send was performed in this diagnostic, but it is not perfectly passive observation.
-10. **No public share-link assumption.** The browser's private `/c/<id>` address is distinct from creating a share link. Do not invoke Share or publish conversations as an identity workaround.
+- The resolver requires an independently supplied expected conversation UUID and exact visible main/sidebar title checks. The title is mutable and may be duplicated; it is not a durable ID.
+- The main Desktop document and embedded browser document are separate surfaces. A browser URL proves only the browser route. `MainDesktopBound=false` must remain in all results unless separate durable binding evidence is established.
+- The menu path preserves one `Expand()` on the verified `Chat actions` button. The `Open on chatgpt.com` item is scoped to the verified document and `Chat actions` Menu ancestry, required to be unique/visible/enabled/invokable, and refreshed with the target before its single invocation.
+- The browser tab RuntimeId/window handle are ephemeral in-memory tokens only. The resolver checks one selected tab and visible-tab count around address reads and before success; they are not persistent identity.
+- A parsed conversation URL must equal the independently supplied expected UUID. A title or parseable URL alone does not pass identity verification.
+- The corrected browser-document geometry requires a visible exact-title RootWebArea Document that contains the address bar horizontally, lies below it, and passes width bounds; exactly one must qualify. Geometry and title remain supporting UI evidence, not permanent main-panel binding.
 
-## Residual threats
+## Private baseline handling
 
-- Wrong conversation selected due to same name, reordered sidebar, hidden item, or stale element.
-- Address bar describes embedded-browser tab while the main Desktop composer belongs to a different conversation.
-- Time-of-check/time-of-use race: window or conversation changes after verification but before Send.
-- UIA hierarchy, app package, CSS classes, or focus behavior changes across updates.
-- Submission attempted but delivery acknowledgement unclear, leading to duplicates if retried.
-- Overcollection of private data during accessibility scanning or diagnostic logging.
-- Session lock, disconnect or crash during interaction.
+`Bridge.Resolve.Supervised.ps1` requests the expected ARM UUID with `Read-Host -AsSecureString`, validates it in the current Windows PowerShell process, clears its temporary BSTR and calls the resolver in-process. It provides separate preflight-only and invocation modes; invocation requires a different selected-browser baseline and exact human confirmation `OPEN` before one resolver call. Its sanitized report omits UUIDs and URLs.
 
-## Explicit limitations of observed proof of concept
+Do not put private UUIDs or conversation URLs in source, arguments, environment variables, temporary files, transcripts, logs, test fixtures or reports. Never copy chat content, credentials, cookies or other private content into this repository. Do not broaden permissions, elevate, enable CDP, use Playwright or call the OpenAI API to work around a UIA limit.
 
-- Successful manual known-ID comparison covers the **browser-selected** conversation only.
-- No tested automatic, immutable, end-to-end binding from sidebar target to browser URL.
-- No verified stable ID across restart, rename or platform update.
-- No qualified unattended operation, request ledger, deduplication, server-side receipt confirmation, or recovery.
-- No statement that every Windows/ChatGPT version exposes the same UIA properties.
+## UI actions, focus and page readiness
 
-## Operating principle
+- `-OpenInBrowser` is a browser/navigation UI mutation, though it does not send a chat message. Obtain explicit human approval for each supervised run and stop on any unexpected condition. Do not automatically retry.
+- Reading the complete address may require `SetFocus()`. This changes UI focus. The bounded reader polls without further focus changes and fails closed on tab change, stale/invalid controls or ambiguity.
+- `Bridge.Navigate.ps1` is a separate legacy browser-navigation experiment. Its opt-in Enter action has a time-of-check/time-of-use global focus race. It does not insert or send chat text.
+- The post-invocation loop uses a finite timeout and checks URL identity, document and tab state. Some pending/error paths have different timeout behavior and can converge on a generic failure result; do not infer a particular cause from `BROWSER_DESTINATION_UNVERIFIED` alone.
+- Cloudflare was reported during one page load, but its causal role in that failure is **unproven**. The Bridge does not detect, automate, bypass or interfere with security challenges.
 
-**Prefer a visible failure over a wrong-destination send.** Preserve evidence but do not inflate experimental PASS into production readiness.
+## Not qualified or not implemented
 
-## M02-A implementation-specific qualifications (2026-10-16)
+- Routing with multiple ChatGPT windows; duplicate, renamed, reordered, hidden or stale sidebar targets.
+- Restarts, updates, session lock/unlock, app lifecycle changes, accessibility tree changes and browser tab/focus races between checks.
+- General reliability or unattended operation beyond the one controlled M02-D.15P scenario.
+- Durable binding from the main Desktop panel/sidebar element to an immutable conversation ID.
+- Chat message insertion/submission, server receipt, delivery acknowledgement, request idempotency, duplicate prevention or uncertain-send recovery. Message delivery remains `NOT_ASSESSED`; no message submission is authorized.
 
-- The navigation-only prototype requires explicit `-Navigate -AcceptKeyboardRisk` opt-in. Its default invocation does not navigate or write any URL, but may change focus to read the complete address.
-- To navigate, it uses `SendKeys('{ENTER}')` only while a focused, visible ListItem matches the expected target URL and adjacent address control, and only with a verified foreground window. **This is still vulnerable to time-of-check/time-of-use focus races.**
-- Before any controlled test, both message composers must have empty drafts; never run an unqualified keyboard-navigation prototype unattended or against valuable unsent content.
-- A successful `VERIFIED_BROWSER_ROUTE` means the **embedded browser** URL and a candidate document/editor were observed; it is not a server acknowledgement, a full page-readiness proof, or a guarantee about the separate main Desktop panel.
-- No messaging capability is implemented. M02-A passed supervised browser inspection and navigation; unattended operation is not qualified. No sensitive IDs should be committed to the public repo or printed as logs.
-
-## M02-C selected-tab guard (2026-10-16)
-
-- Positive experimental evidence: two visible browser tabs had exactly one selected `TabItem`; the selected blank tab gave an empty address; switching back to CDLD produced a 58-character conversation-shaped address.
-- `Bridge.TabGuard.ps1` checks exactly one selected tab, using relative position to the browser address control plus UIA selection state. It records only an ephemeral RuntimeId **in memory**, never in output or committed fixtures.
-- The selected tab and tab count must remain stable before address insertion, during autocomplete, just before global Enter, during post-navigation verification, and on the final check. Ambiguous/missing/changed selection fails closed.
-- The guard cannot prevent a focus switch in the fraction of time between final check and the global Enter. It also cannot infer the main Desktop conversation's immutable ID, guarantee active window routing across multiple Desktop windows, or prove that a rendered page's content is fresh.
-- M02-C received human-run Windows results: 20/20 offline checks, supervised one-tab inspection/navigation, and a two-tab blank-selected mismatch rejection all PASS. Deliberate tab switching mid-navigation remains unqualified; use supervised tests with empty drafts only.
-
-## M02-D.13 identity correlation limitations
-
-- `Bridge.Resolve.ps1` requires both an exact main-sidebar title and a caller-supplied expected conversation UUID. A duplicate visible sidebar title or ambiguous main document/menu item is an error, never an implicit choice. Titles are mutable and therefore are NOT durable identity keys.
-- `-OpenInBrowser` is an explicit user action that invokes only the `Open on chatgpt.com` menu option. It may create or select an embedded-browser tab. This is a navigation/UI-state mutation, even though no chat message is submitted.
-- If the current selected browser tab already matches the expected ID before menu invocation, the script returns `BROWSER_ALREADY_ON_EXPECTED_ID` rather than claiming causal identity evidence.
-- The script rechecks the selected tab, URL, and browser document after menu invocation, reports a transition category, and returns `MainDesktopBound=false`. It does not control external browsers or equate a name match with permanent main-Desktop identity binding.
-- A UIA race or unexpected ChatGPT Desktop update may cause false negatives or unforeseen menu behavior; no unattended or production use is qualified. Browser tab transitions during UIA polling are not guaranteed detectable between snapshots.
-- The browser URL and ID are compared only in memory; output omits titles, private IDs, URLs, and UIA RuntimeIds. No composer writes, keyboard SendKeys or chat Send invocation is implemented.
-
-## M02-D.15D/E menu association limitation and correction
-
-- A human-opened popup was observed in UIA under a `Menu` named `Chat actions` and the ARM `Document`, alongside one unique ARM sidebar row and action button. This supports a **document-scoped popup association** for the observed UI state. It does not expose a proven permanent/direct ownership link from that popup to a particular button.
-- The resolver's bounded correction scopes the item query to the title-verified ARM document, requires the item's ancestry to include its `Chat actions` Menu, and validates uniqueness, visibility, enabled state, and InvokePattern. It rechecks the target row/button and item immediately before the existing invocation; missing ephemeral RuntimeIds fail closed.
-- The `Expand()` operation remains single-shot. If it does not report `Expanded` but the associated visible menu postcondition is valid, the sanitized result records `MenuStateMismatch=true`; invalid or ambiguous ownership still fails closed.
-- M02-D.15E's 127/127 Windows PowerShell offline assertions establish syntax/helper/source guards only. The corrected path has not been exercised against a live menu, and this offline milestone does not qualify a live invocation. `MainDesktopBound=false` remains unchanged.
-
-## M02-D.15H-R1/I delayed address availability
-
-- A supervised read-only timing observation saw the address remain origin-only immediately after one focus operation and become conversation-shaped by approximately 250 ms; the selected-tab RuntimeId and count stayed stable. This supports, but does not prove for the earlier failed run, an asynchronous ValuePattern update as the cause of a null URL parse.
-- The supervised baseline and resolver now use a bounded two-second/125 ms poll, verify tab identity/count before and after each read, and focus only once per address-reading operation. A valid parsed URL is still compared with the independently supplied expected conversation ID; a different ID does not pass.
-- Offline suites pass 151/151, including the prior 127 assertions. No live use of the modified reader was performed. A timeout or UIA instability stops before menu invocation; this does not qualify the integrated live path.
-
-## BRIDGE.CODEX.BASELINE.1B supervised launcher
-
-- `src/Bridge.Resolve.Supervised.ps1` requests the independently verified ARM UUID with `Read-Host -AsSecureString`, rejects redirected/noninteractive input, validates with the existing UUID helper, and converts the secure value only in the current Windows PowerShell process. The temporary BSTR is zeroed and the SecureString disposed.
-- The wrapper invokes `Bridge.Resolve.ps1` in-process. `-PreflightOnly` runs the existing read-only resolver preflight. `-ConfirmOpenInBrowser` runs that preflight, verifies a unique selected browser tab whose address resolves to a different conversation ID, then requires the human to type `OPEN` and repeats the baseline check before one resolver `-OpenInBrowser` call. The resolver now fails closed if no existing browser-conversation baseline can be read.
-- The selected browser address is read through UIA ValuePattern after focusing its embedded-browser address control; this changes keyboard focus. The wrapper never prints or persists the address or either conversation ID. Its result contains only sanitized status and verification fields and keeps `MainDesktopBound=false`.
-- The launcher has offline syntax/source-guard qualification only. It has not been qualified against live input, UIA, or menu invocation. Do not treat offline checks as evidence that the live path works.
-
-## M02-D.13 qualification update (2026-10-16)
-
-Human-provided Windows PowerShell output confirms offline suites `18/18`, `20/20`, and `33/33`, **71/71 assertions PASS** across M02-A, M02-C and M02-D.13. These offline checks test parser/pure helper/source invariants, **not runtime proof** of `Bridge.Resolve.ps1`.
-
-The integrated resolver's actual live preflight and opt-in menu invocation have **not** yet been executed. Distinguish previously successful manually assembled UIA commands from the new integrated script. Continue to report `MainDesktopBound=false`, do not infer browser tab creation behavior without evidence, and never promote URL/title correlation to unattended identity assurance.
+Prefer a visible failure to acting on an uncertain destination. An invoked UIA control is not proof of server-side success. Do not blindly retry an ambiguous operation.
