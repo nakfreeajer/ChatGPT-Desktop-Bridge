@@ -4,6 +4,7 @@ $root=Split-Path -Parent $PSScriptRoot
 $files=@(
     (Join-Path $root 'src/Bridge.Identity.ps1'),
     (Join-Path $root 'src/Bridge.TabGuard.ps1'),
+    (Join-Path $root 'src/Bridge.Resolve.Helpers.ps1'),
     (Join-Path $root 'src/Bridge.Resolve.ps1'),
     (Join-Path $root 'src/Bridge.Resolve.Supervised.ps1'),
     $PSCommandPath
@@ -19,6 +20,8 @@ foreach($file in $files){
     $checks++
 }
 . (Join-Path $root 'src/Bridge.Identity.ps1')
+. (Join-Path $root 'src/Bridge.Resolve.Helpers.ps1')
+. (Join-Path $root 'src/Bridge.TabGuard.ps1')
 function Assert-SupervisedTest {
     param([bool]$IsTrue,[string]$Description)
     $script:checks++
@@ -47,7 +50,12 @@ Assert-SupervisedTest ($source.Contains("'BROWSER_ALREADY_ON_EXPECTED_ID'")) 'sa
 Assert-SupervisedTest ([regex]::Matches($source,'-OpenInBrowser').Count -eq 1) 'one live resolver call site'
 Assert-SupervisedTest ($source.Contains('MainDesktopBound = $false')) 'durable main identity remains unclaimed'
 Assert-SupervisedTest ($source.Contains('[pscustomobject]$report | ConvertTo-Json -Compress')) 'sanitized report serialized'
-Assert-SupervisedTest ($source.Contains('Test-BridgeTabSnapshotStable $tab $after')) 'browser tab held stable during baseline read'
+Assert-SupervisedTest ($source.Contains('Get-BridgeConversationAddress -ReadAddress $addressReader -ReadTab $tabReader')) 'browser tab held stable throughout baseline read'
+Assert-SupervisedTest ($source.Contains('Get-BridgeConversationAddress -ReadAddress $addressReader -ReadTab $tabReader')) 'launcher uses bounded stable-tab address reader'
+Assert-SupervisedTest ($source.Contains("-TimeoutMilliseconds 2000 -PollIntervalMilliseconds 125")) 'launcher address wait bounded to two seconds'
+Assert-SupervisedTest ($source.Contains("Stop-Supervised 'BLOCKED' ([string]`$addressResult.Status)")) 'launcher returns precise sanitized address failure status'
+Assert-SupervisedTest ([regex]::Matches($source,'\$bars\[0\]\.SetFocus\(').Count -eq 1) 'launcher baseline has one focus site'
+Assert-SupervisedTest ($source.Contains('return $after.VisibleCount')) 'launcher returns stable observed tab count'
 Assert-SupervisedTest ($source.Contains('$bars[0].SetFocus()')) 'selected address read through UIA'
 Assert-SupervisedTest (-not $source.Contains('SendKeys')) 'no keyboard injection'
 Assert-SupervisedTest (-not $source.Contains('SetValue(')) 'no composer writes'
@@ -59,6 +67,10 @@ $recheckAt=$source.LastIndexOf('Get-SupervisedBrowserBaseline -ExpectedId $expec
 $liveAt=$source.IndexOf('& $resolver -ConversationTitle ''Artifact Relay Manager'' -ExpectedConversationId $expectedId -OpenInBrowser')
 Assert-SupervisedTest ($preflightAt -ge 0 -and $browserCheckAt -gt $preflightAt) 'resolver preflight precedes browser check'
 Assert-SupervisedTest ($confirmationAt -gt $browserCheckAt -and $recheckAt -gt $confirmationAt -and $liveAt -gt $recheckAt) 'human confirmation and baseline recheck precede live call'
+$addressReadAt=$source.IndexOf('$addressResult=Get-BridgeConversationAddress')
+$addressFailureAt=$source.IndexOf("if(`$addressResult.Status -ne 'OK')")
+$confirmationAt=$source.IndexOf("Read-Host 'Preconditions passed. Type OPEN to invoke the menu once'")
+Assert-SupervisedTest ($addressReadAt -ge 0 -and $addressFailureAt -gt $addressReadAt -and $confirmationAt -gt $addressFailureAt) 'failed baseline blocks confirmation and menu invocation'
 $reportStart=$source.IndexOf('$report = [ordered]@{')
 $reportEnd=$source.IndexOf('function Stop-Supervised')
 $reportSource=$source.Substring($reportStart,$reportEnd-$reportStart)

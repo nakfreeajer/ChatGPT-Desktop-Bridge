@@ -191,19 +191,28 @@ function Get-ResolveBrowserBar {
     return $bars[0]
 }
 function Get-ResolveBrowserObservation {
-    param([IntPtr]$Handle,$Root)
+    param([IntPtr]$Handle,$Root,[switch]$FocusAddress)
     $bar=Get-ResolveBrowserBar $Root
     if($null -eq $bar){return $null}
     $before=Get-BridgeSelectedBrowserTab -Handle $Handle -Bar $bar -Stage 'TAB_OBSERVATION'
     if($before.Status -ne 'OK'){Stop-Resolve $before.Status 'TAB_OBSERVATION'}
-    $bar.SetFocus()
-    Start-Sleep -Milliseconds 250
-    $url=[string]$bar.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
-    $after=Get-BridgeSelectedBrowserTab -Handle $Handle -Bar $bar -Stage 'TAB_OBSERVATION'
-    if(-not (Test-BridgeTabSnapshotStable $before $after)){
-        Stop-Resolve 'TAB_CHANGED_DURING_READ' 'TAB_OBSERVATION'
+    if($FocusAddress){
+        try{$bar.SetFocus()}catch{Stop-Resolve 'BROWSER_ADDRESS_UNAVAILABLE' 'TAB_OBSERVATION'}
     }
-    return [pscustomobject]@{Tab=$after;ConversationId=(Get-BridgeConversationIdFromUrl $url)}
+    $addressReader={
+        $current=$bar.Current
+        if($current.ControlType -ne [System.Windows.Automation.ControlType]::ComboBox -or
+            $current.IsOffscreen -or -not $current.IsEnabled -or
+            $bar.GetSupportedPatterns() -notcontains [System.Windows.Automation.ValuePattern]::Pattern){
+            throw 'BROWSER_ADDRESS_CONTROL_UNAVAILABLE'
+        }
+        [string]$bar.GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
+    }
+    $tabReader={Get-BridgeSelectedBrowserTab -Handle $Handle -Bar $bar -Stage 'TAB_OBSERVATION'}
+    $read=Get-BridgeConversationAddress -ReadAddress $addressReader -ReadTab $tabReader `
+        -Baseline $before -TimeoutMilliseconds 2000 -PollIntervalMilliseconds 125
+    if($read.Status -ne 'OK'){Stop-Resolve ([string]$read.Status) 'TAB_OBSERVATION'}
+    return [pscustomobject]@{Tab=$read.Tab;ConversationId=[string]$read.ConversationId}
 }
 function Test-ResolveBrowserDocument {
     param($Root,[string]$Title)
@@ -251,7 +260,7 @@ try {
         $result.Stage='COMPLETE'
     }else{
         $result.Stage='BROWSER_BASELINE'
-        $baseline=Get-ResolveBrowserObservation -Handle $handle -Root $root
+        $baseline=Get-ResolveBrowserObservation -Handle $handle -Root $root -FocusAddress
         if($null -eq $baseline -or [string]::IsNullOrWhiteSpace([string]$baseline.ConversationId)){
             Stop-Resolve 'BROWSER_BASELINE_NOT_VERIFIED' 'BROWSER_BASELINE'
         }
@@ -333,12 +342,18 @@ try {
         $result.Stage='VERIFY_BROWSER_ID'
         $watch=[System.Diagnostics.Stopwatch]::StartNew()
         $success=$false
+        $focusBrowserAddress=$true
         do {
             Start-Sleep -Milliseconds 350
             try {
                 $root=Get-ResolveRoot $handle
                 [void](Assert-ResolveMainDocument $root $ConversationTitle)
-                $obs=Get-ResolveBrowserObservation -Handle $handle -Root $root
+                if($focusBrowserAddress){
+                    $obs=Get-ResolveBrowserObservation -Handle $handle -Root $root -FocusAddress
+                    if($null -ne $obs){$focusBrowserAddress=$false}
+                }else{
+                    $obs=Get-ResolveBrowserObservation -Handle $handle -Root $root
+                }
                 if($null -eq $obs){continue}
                 if($obs.ConversationId -ne $expected){continue}
                 $priorTab=$null

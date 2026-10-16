@@ -19,6 +19,8 @@ foreach($file in $files){
     $checks++
 }
 . (Join-Path $root 'src/Bridge.Resolve.Helpers.ps1')
+. (Join-Path $root 'src/Bridge.Identity.ps1')
+. (Join-Path $root 'src/Bridge.TabGuard.ps1')
 function Assert-ResolveTest {
     param([bool]$IsTrue,[string]$Description)
     $script:checks++
@@ -46,6 +48,54 @@ Assert-ResolveTest (-not (Test-BridgeTitleInput '')) 'blank title'
 Assert-ResolveTest (-not (Test-BridgeTitleInput '  ')) 'whitespace title'
 Assert-ResolveTest (-not (Test-BridgeTitleInput ("Bad"+[char]10+"Title"))) 'newline rejected'
 Assert-ResolveTest (-not (Test-BridgeTitleInput ('x'*121))) 'overlength title'
+$tabBase=[pscustomobject]@{Status='OK';RuntimeKey='offline:tab:1';VisibleCount=2}
+$conversationUrl='https://chatgpt.com/c/11111111-2222-3333-4444-555555555555'
+$script:addressReads=0
+$immediateReader={ [void]($script:addressReads++); $conversationUrl }
+$stableReader={ [pscustomobject]@{Status='OK';RuntimeKey='offline:tab:1';VisibleCount=2} }
+$read=Get-BridgeConversationAddress -ReadAddress $immediateReader -ReadTab $stableReader -Baseline $tabBase -TimeoutMilliseconds 100 -PollIntervalMilliseconds 5
+Assert-ResolveTest ($read.Status -eq 'OK' -and $script:addressReads -eq 1) 'conversation URL available immediately'
+$script:addressReads=0
+$script:addressSequence=@('https://chatgpt.com/',$conversationUrl)
+$delayedReader={ $i=[Math]::Min($script:addressReads,$script:addressSequence.Count-1); [void]($script:addressReads++); $script:addressSequence[$i] }
+$read=Get-BridgeConversationAddress -ReadAddress $delayedReader -ReadTab $stableReader -Baseline $tabBase -TimeoutMilliseconds 250 -PollIntervalMilliseconds 5
+Assert-ResolveTest ($read.Status -eq 'OK' -and $script:addressReads -eq 2) 'origin-only value then delayed conversation URL'
+Assert-ResolveTest ((Test-BridgeConversationId $read.ConversationId) -and -not [string]::Equals($read.ConversationId,'22222222-3333-4444-5555-666666666666',[System.StringComparison]::OrdinalIgnoreCase)) 'parseable different conversation remains distinguishable from expected ID'
+$script:addressReads=0
+$originReader={ [void]($script:addressReads++); 'https://chatgpt.com/' }
+$read=Get-BridgeConversationAddress -ReadAddress $originReader -ReadTab $stableReader -Baseline $tabBase -TimeoutMilliseconds 30 -PollIntervalMilliseconds 5
+Assert-ResolveTest ($read.Status -eq 'BROWSER_CONVERSATION_URL_TIMEOUT' -and $script:addressReads -gt 1) 'origin-only value times out boundedly'
+foreach($badAddress in @('', 'not-a-url')){
+    $script:badValue=$badAddress
+    $badReader={ [string]$script:badValue }
+    $read=Get-BridgeConversationAddress -ReadAddress $badReader -ReadTab $stableReader -Baseline $tabBase -TimeoutMilliseconds 15 -PollIntervalMilliseconds 5
+    Assert-ResolveTest ($read.Status -eq 'BROWSER_CONVERSATION_URL_TIMEOUT') 'empty or invalid address rejected at timeout'
+}
+$script:tabCalls=0
+$changingTabReader={
+    [void]($script:tabCalls++)
+    if($script:tabCalls -ge 2){[pscustomobject]@{Status='OK';RuntimeKey='offline:tab:changed';VisibleCount=2}}
+    else{[pscustomobject]@{Status='OK';RuntimeKey='offline:tab:1';VisibleCount=2}}
+}
+$read=Get-BridgeConversationAddress -ReadAddress $immediateReader -ReadTab $changingTabReader -Baseline $tabBase -TimeoutMilliseconds 100 -PollIntervalMilliseconds 5
+Assert-ResolveTest ($read.Status -eq 'TAB_CHANGED_DURING_ADDRESS_READ') 'selected tab RuntimeId change fails immediately'
+$script:tabCalls=0
+$countChangingReader={
+    [void]($script:tabCalls++)
+    if($script:tabCalls -ge 2){[pscustomobject]@{Status='OK';RuntimeKey='offline:tab:1';VisibleCount=3}}
+    else{[pscustomobject]@{Status='OK';RuntimeKey='offline:tab:1';VisibleCount=2}}
+}
+$read=Get-BridgeConversationAddress -ReadAddress $immediateReader -ReadTab $countChangingReader -Baseline $tabBase -TimeoutMilliseconds 100 -PollIntervalMilliseconds 5
+Assert-ResolveTest ($read.Status -eq 'TAB_CHANGED_DURING_ADDRESS_READ') 'visible tab count change fails immediately'
+$unavailableReader={ throw 'stale address control' }
+$read=Get-BridgeConversationAddress -ReadAddress $unavailableReader -ReadTab $stableReader -Baseline $tabBase -TimeoutMilliseconds 100 -PollIntervalMilliseconds 5
+Assert-ResolveTest ($read.Status -eq 'BROWSER_ADDRESS_UNAVAILABLE') 'unavailable address control fails immediately'
+$read=Get-BridgeConversationAddress -ReadAddress $immediateReader -ReadTab $stableReader -Baseline $tabBase -TimeoutMilliseconds 100 -PollIntervalMilliseconds 5
+Assert-ResolveTest ($read.Status -eq 'OK' -and $read.Tab.VisibleCount -eq 2) 'stable tab metadata returned with parsed address'
+$helpers=[System.IO.File]::ReadAllText((Join-Path $root 'src/Bridge.Resolve.Helpers.ps1'))
+$pollStart=$helpers.IndexOf('function Get-BridgeConversationAddress')
+$pollSource=$helpers.Substring($pollStart)
+Assert-ResolveTest (-not $pollSource.Contains('SetFocus')) 'bounded address polling never changes focus'
 $menuSnapshot=[pscustomobject]@{
     DocumentVerified=$true;ExpandCollapseState='Expanded';TargetRowCount=1;ActionButtonCount=1;TargetStable=$true;ControlsFresh=$true
     MenuContainerCount=1;MenuCandidateCount=1;CorrectMenuAncestry=$true
@@ -93,6 +143,15 @@ Assert-ResolveTest ($freshGateAt -ge 0 -and $invokeAt -gt $freshGateAt) 'failed 
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_ALREADY_ON_EXPECTED_ID'")) 'initial match must not imply action evidence'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_BASELINE_NOT_VERIFIED' 'BROWSER_BASELINE'")) 'invocation requires a verified existing browser conversation'
 Assert-ResolveTest ($source.Contains('if($obs.ConversationId -ne $expected){continue}')) 'expected ID comparison mandatory'
+Assert-ResolveTest ($source.Contains('Get-BridgeConversationAddress -ReadAddress $addressReader -ReadTab $tabReader')) 'resolver uses bounded stable-tab address reader'
+Assert-ResolveTest ($source.Contains("-TimeoutMilliseconds 2000 -PollIntervalMilliseconds 125")) 'resolver address polling bounded to two seconds'
+Assert-ResolveTest ($source.Contains('Get-ResolveBrowserObservation -Handle $handle -Root $root -FocusAddress')) 'resolver explicitly focuses once before baseline address read'
+Assert-ResolveTest ($source.Contains('if($null -ne $obs){$focusBrowserAddress=$false}')) 'resolver retains pending focus until browser address bar is found'
+$observationStart=$source.IndexOf('function Get-ResolveBrowserObservation')
+$observationEnd=$source.IndexOf('function Test-ResolveBrowserDocument',$observationStart)
+$observationSource=$source.Substring($observationStart,$observationEnd-$observationStart)
+Assert-ResolveTest ([regex]::Matches($observationSource,'\.SetFocus\(').Count -eq 1) 'resolver address observation has one focus site'
+Assert-ResolveTest ($source.Contains("Stop-Resolve ([string]`$read.Status) 'TAB_OBSERVATION'")) 'resolver propagates bounded reader failure before menu action'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'TAB_CHANGED_DURING_VERIFICATION'")) 'tab stability check present'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_DESTINATION_CHANGED'")) 'final URL/tab check present'
 Assert-ResolveTest ($source.Contains('MainDesktopBound          = $false')) 'cannot claim durable main identity'

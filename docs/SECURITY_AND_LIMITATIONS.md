@@ -71,6 +71,12 @@ Experimental UI Automation research on a live Windows desktop session; **not an 
 - The `Expand()` operation remains single-shot. If it does not report `Expanded` but the associated visible menu postcondition is valid, the sanitized result records `MenuStateMismatch=true`; invalid or ambiguous ownership still fails closed.
 - M02-D.15E's 127/127 Windows PowerShell offline assertions establish syntax/helper/source guards only. The corrected path has not been exercised against a live menu, and this offline milestone does not qualify a live invocation. `MainDesktopBound=false` remains unchanged.
 
+## M02-D.15H-R1/I delayed address availability
+
+- A supervised read-only timing observation saw the address remain origin-only immediately after one focus operation and become conversation-shaped by approximately 250 ms; the selected-tab RuntimeId and count stayed stable. This supports, but does not prove for the earlier failed run, an asynchronous ValuePattern update as the cause of a null URL parse.
+- The supervised baseline and resolver now use a bounded two-second/125 ms poll, verify tab identity/count before and after each read, and focus only once per address-reading operation. A valid parsed URL is still compared with the independently supplied expected conversation ID; a different ID does not pass.
+- Offline suites pass 151/151, including the prior 127 assertions. No live use of the modified reader was performed. A timeout or UIA instability stops before menu invocation; this does not qualify the integrated live path.
+
 ## BRIDGE.CODEX.BASELINE.1B supervised launcher
 
 - `src/Bridge.Resolve.Supervised.ps1` requests the independently verified ARM UUID with `Read-Host -AsSecureString`, rejects redirected/noninteractive input, validates with the existing UUID helper, and converts the secure value only in the current Windows PowerShell process. The temporary BSTR is zeroed and the SecureString disposed.

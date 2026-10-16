@@ -1,5 +1,5 @@
-# BRIDGE.M02-D.13: pure helper functions for menu-to-browser identity tests.
-# No UIA actions. RuntimeId snapshots must not be persisted across invocations.
+# BRIDGE.M02-D.13/15I: decision and coordination helpers for menu/browser identity.
+# UIA is accessed only through caller-supplied callbacks; RuntimeIds remain ephemeral.
 
 function Get-BridgeTabTransition {
     param($Before, $After)
@@ -45,4 +45,74 @@ function Test-BridgeAssociatedMenuSnapshot {
         return 'MENU_ITEM_UNAVAILABLE'
     }
     return 'OK'
+}
+
+# Poll a focused browser address control without changing focus. The caller
+# supplies the selected-tab reader and address reader so this remains offline-testable.
+function Get-BridgeConversationAddress {
+    param(
+        [scriptblock]$ReadAddress,
+        [scriptblock]$ReadTab,
+        $Baseline,
+        [ValidateRange(1,2000)][int]$TimeoutMilliseconds = 2000,
+        [ValidateRange(1,150)][int]$PollIntervalMilliseconds = 125
+    )
+    if ($null -eq $Baseline -or [string]::IsNullOrWhiteSpace([string]$Baseline.RuntimeKey)) {
+        return [pscustomobject]@{Status='BASELINE_TAB_UNVERIFIED'}
+    }
+    if ($null -eq $ReadAddress -or $null -eq $ReadTab) {
+        return [pscustomobject]@{Status='ADDRESS_READER_UNAVAILABLE'}
+    }
+
+    $watch=[System.Diagnostics.Stopwatch]::StartNew()
+    while ($true) {
+        try { $before=& $ReadTab } catch {
+            return [pscustomobject]@{Status='TAB_STATE_UNAVAILABLE'}
+        }
+        if ($null -eq $before -or $before.Status -ne 'OK') {
+            $status='TAB_STATE_UNAVAILABLE'
+            if ($null -ne $before -and -not [string]::IsNullOrWhiteSpace([string]$before.Status)) {
+                $status=[string]$before.Status
+            }
+            return [pscustomobject]@{Status=$status}
+        }
+        if (-not (Test-BridgeTabSnapshotStable -Before $Baseline -After $before)) {
+            return [pscustomobject]@{Status='TAB_CHANGED_DURING_ADDRESS_READ'}
+        }
+
+        try { $address=[string](& $ReadAddress) } catch {
+            return [pscustomobject]@{Status='BROWSER_ADDRESS_UNAVAILABLE'}
+        }
+
+        try { $after=& $ReadTab } catch {
+            return [pscustomobject]@{Status='TAB_STATE_UNAVAILABLE'}
+        }
+        if ($null -eq $after -or $after.Status -ne 'OK') {
+            $status='TAB_STATE_UNAVAILABLE'
+            if ($null -ne $after -and -not [string]::IsNullOrWhiteSpace([string]$after.Status)) {
+                $status=[string]$after.Status
+            }
+            return [pscustomobject]@{Status=$status}
+        }
+        if (-not (Test-BridgeTabSnapshotStable -Before $before -After $after) -or
+            -not (Test-BridgeTabSnapshotStable -Before $Baseline -After $after)) {
+            return [pscustomobject]@{Status='TAB_CHANGED_DURING_ADDRESS_READ'}
+        }
+
+        $conversationId=Get-BridgeConversationIdFromUrl $address
+        Remove-Variable address -ErrorAction SilentlyContinue
+        if ($null -ne $conversationId) {
+            return [pscustomobject]@{
+                Status='OK'
+                ConversationId=$conversationId
+                Tab=$after
+            }
+        }
+
+        $remaining=$TimeoutMilliseconds-[int]$watch.ElapsedMilliseconds
+        if ($remaining -le 0) {
+            return [pscustomobject]@{Status='BROWSER_CONVERSATION_URL_TIMEOUT'}
+        }
+        Start-Sleep -Milliseconds ([Math]::Min($PollIntervalMilliseconds,$remaining))
+    }
 }

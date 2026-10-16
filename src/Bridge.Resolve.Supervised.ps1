@@ -73,6 +73,7 @@ function Get-SupervisedBrowserBaseline {
     Add-Type -AssemblyName UIAutomationTypes
     . (Join-Path $PSScriptRoot 'Bridge.Identity.ps1')
     . (Join-Path $PSScriptRoot 'Bridge.TabGuard.ps1')
+    . (Join-Path $PSScriptRoot 'Bridge.Resolve.Helpers.ps1')
 
     $windows = @(Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
     if ($windows.Count -ne 1) { Stop-Supervised 'BLOCKED' 'WINDOW_NOT_UNIQUE' }
@@ -98,20 +99,27 @@ function Get-SupervisedBrowserBaseline {
     $tab = Get-BridgeSelectedBrowserTab -Handle $handle -Bar $bars[0] -Stage 'BASELINE'
     if ($tab.Status -ne 'OK') { Stop-Supervised 'BLOCKED' 'BROWSER_TAB_NOT_VERIFIED' }
     try {
-        # UIA focus is used only to expose the selected embedded tab's address to ValuePattern.
+        # Focus once; the shared bounded reader never changes focus while polling.
         $bars[0].SetFocus()
-        Start-Sleep -Milliseconds 250
-        $address = [string]$bars[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
     } catch {
         Stop-Supervised 'BLOCKED' 'BROWSER_ADDRESS_UNAVAILABLE'
     }
-    $after = Get-BridgeSelectedBrowserTab -Handle $handle -Bar $bars[0] -Stage 'BASELINE'
-    if ($after.Status -ne 'OK' -or -not (Test-BridgeTabSnapshotStable $tab $after)) {
-        Stop-Supervised 'BLOCKED' 'BROWSER_TAB_CHANGED_DURING_BASELINE'
+    $addressReader = {
+        $current=$bars[0].Current
+        if($current.ControlType -ne [System.Windows.Automation.ControlType]::ComboBox -or
+            $current.IsOffscreen -or -not $current.IsEnabled -or
+            $bars[0].GetSupportedPatterns() -notcontains [System.Windows.Automation.ValuePattern]::Pattern){
+            throw 'BROWSER_ADDRESS_CONTROL_UNAVAILABLE'
+        }
+        [string]$bars[0].GetCurrentPattern([System.Windows.Automation.ValuePattern]::Pattern).Current.Value
     }
-    $browserId = Get-BridgeConversationIdFromUrl $address
-    Remove-Variable address -ErrorAction SilentlyContinue
-    if ($null -eq $browserId) { Stop-Supervised 'BLOCKED' 'BROWSER_CONVERSATION_NOT_VERIFIED' }
+    $tabReader = { Get-BridgeSelectedBrowserTab -Handle $handle -Bar $bars[0] -Stage 'BASELINE' }
+    $addressResult=Get-BridgeConversationAddress -ReadAddress $addressReader -ReadTab $tabReader `
+        -Baseline $tab -TimeoutMilliseconds 2000 -PollIntervalMilliseconds 125
+    if($addressResult.Status -ne 'OK') { Stop-Supervised 'BLOCKED' ([string]$addressResult.Status) }
+    $after=$addressResult.Tab
+    $browserId=[string]$addressResult.ConversationId
+    Remove-Variable addressReader,tabReader,addressResult -ErrorAction SilentlyContinue
     $matchesExpected = [string]::Equals($browserId,$ExpectedId,[System.StringComparison]::OrdinalIgnoreCase)
     Remove-Variable browserId -ErrorAction SilentlyContinue
     if ($matchesExpected) {
