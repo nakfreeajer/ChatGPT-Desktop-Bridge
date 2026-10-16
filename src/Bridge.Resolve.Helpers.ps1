@@ -26,6 +26,46 @@ function Test-BridgeTitleInput {
     return (-not [regex]::IsMatch($Title, '[\r\n\x00-\x1f]'))
 }
 
+# Pure geometry predicate for identifying the embedded-browser document.
+# Horizontal containment binds the document region to its address bar without
+# assuming that their left edges are nearly aligned.
+function Test-BridgeBrowserDocumentGeometry {
+    param($DocumentRect,$AddressBarRect,$WindowRect)
+    foreach($rect in @($DocumentRect,$AddressBarRect,$WindowRect)){
+        if($null -eq $rect){return $false}
+        foreach($property in @('Left','Top','Right','Bottom','Width','Height')){
+            $member=$rect.PSObject.Properties[$property]
+            if($null -eq $member){return $false}
+            try{$value=[double]$member.Value}catch{return $false}
+            if([double]::IsNaN($value) -or [double]::IsInfinity($value)){return $false}
+        }
+        if([double]$rect.Width -le 0 -or [double]$rect.Height -le 0 -or
+           [double]$rect.Right -le [double]$rect.Left -or
+           [double]$rect.Bottom -le [double]$rect.Top){return $false}
+        if([Math]::Abs([double]$rect.Width-([double]$rect.Right-[double]$rect.Left)) -gt 0.01 -or
+           [Math]::Abs([double]$rect.Height-([double]$rect.Bottom-[double]$rect.Top)) -gt 0.01){return $false}
+    }
+    return (
+        [double]$DocumentRect.Top -gt [double]$AddressBarRect.Top -and
+        [double]$DocumentRect.Left -le [double]$AddressBarRect.Left -and
+        [double]$DocumentRect.Right -ge [double]$AddressBarRect.Right -and
+        [double]$DocumentRect.Width -gt 150 -and
+        [double]$DocumentRect.Width -lt (0.8 * [double]$WindowRect.Width)
+    )
+}
+
+function Test-BridgeBrowserDocumentCandidate {
+    param(
+        [string]$DocumentTitle,[string]$ExpectedTitle,
+        [bool]$IsVisible,[bool]$IsDocument,[bool]$IsRootWebArea,
+        $DocumentRect,$AddressBarRect,$WindowRect
+    )
+    if(-not $IsVisible -or -not $IsDocument -or -not $IsRootWebArea){return $false}
+    if(-not [string]::Equals($DocumentTitle,$ExpectedTitle,[System.StringComparison]::Ordinal)){return $false}
+    return (Test-BridgeBrowserDocumentGeometry -DocumentRect $DocumentRect `
+        -AddressBarRect $AddressBarRect -WindowRect $WindowRect)
+}
+
 # Pure decision helper for the resolver's document-scoped popup verification.
 # UIA discovery and RuntimeIds remain in the current operation; this helper
 # receives only sanitized relationship/eligibility facts and is offline-testable.

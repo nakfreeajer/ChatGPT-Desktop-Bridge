@@ -48,6 +48,36 @@ Assert-ResolveTest (-not (Test-BridgeTitleInput '')) 'blank title'
 Assert-ResolveTest (-not (Test-BridgeTitleInput '  ')) 'whitespace title'
 Assert-ResolveTest (-not (Test-BridgeTitleInput ("Bad"+[char]10+"Title"))) 'newline rejected'
 Assert-ResolveTest (-not (Test-BridgeTitleInput ('x'*121))) 'overlength title'
+$windowRect=[pscustomobject]@{Left=4;Top=53;Right=1880;Bottom=1050;Width=1876;Height=997}
+$addressRect=[pscustomobject]@{Left=1256;Top=185;Right=1647;Bottom=221;Width=391;Height=36}
+$observedBrowserRect=[pscustomobject]@{Left=1028;Top=233;Right=1877;Bottom=1046;Width=849;Height=813}
+$observedMainRect=[pscustomobject]@{Left=4;Top=53;Right=1881;Bottom=1051;Width=1877;Height=998}
+Assert-ResolveTest (Test-BridgeBrowserDocumentCandidate -DocumentTitle 'Artifact Relay Manager' -ExpectedTitle 'Artifact Relay Manager' -IsVisible $true -IsDocument $true -IsRootWebArea $true -DocumentRect $observedBrowserRect -AddressBarRect $addressRect -WindowRect $windowRect) 'observed ARM browser document contains address bar and passes candidate checks'
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentGeometry $observedMainRect $addressRect $windowRect)) 'observed main Desktop document rejected by browser geometry'
+$extendsLeftRect=[pscustomobject]@{Left=900;Top=230;Right=1700;Bottom=900;Width=800;Height=670}
+Assert-ResolveTest (Test-BridgeBrowserDocumentGeometry $extendsLeftRect $addressRect $windowRect) 'browser document may extend left when it contains address bar bounds'
+$notContainingRect=[pscustomobject]@{Left=1300;Top=230;Right=1700;Bottom=900;Width=400;Height=670}
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentGeometry $notContainingRect $addressRect $windowRect)) 'document not containing address bar horizontally rejected'
+$aboveAddressRect=[pscustomobject]@{Left=900;Top=100;Right=1700;Bottom=180;Width=800;Height=80}
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentGeometry $aboveAddressRect $addressRect $windowRect)) 'document above address bar rejected'
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentCandidate -DocumentTitle 'Other title' -ExpectedTitle 'Artifact Relay Manager' -IsVisible $true -IsDocument $true -IsRootWebArea $true -DocumentRect $observedBrowserRect -AddressBarRect $addressRect -WindowRect $windowRect)) 'incorrect document title rejected'
+$offscreenRect=[pscustomobject]@{Left=900;Top=230;Right=1700;Bottom=900;Width=800;Height=670;IsOffscreen=$true}
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentCandidate -DocumentTitle 'Artifact Relay Manager' -ExpectedTitle 'Artifact Relay Manager' -IsVisible $false -IsDocument $true -IsRootWebArea $true -DocumentRect $offscreenRect -AddressBarRect $addressRect -WindowRect $windowRect)) 'offscreen document rejected'
+$duplicateQualifiers=@(
+    (Test-BridgeBrowserDocumentGeometry $observedBrowserRect $addressRect $windowRect),
+    (Test-BridgeBrowserDocumentGeometry $extendsLeftRect $addressRect $windowRect)
+)
+Assert-ResolveTest (@($duplicateQualifiers | Where-Object {$_}).Count -ne 1) 'duplicate qualifying browser documents remain ambiguous'
+$invalidRect=[pscustomobject]@{Left=10;Top=10;Right=10;Bottom=20;Width=0;Height=10}
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentGeometry $invalidRect $addressRect $windowRect)) 'empty or invalid rectangle rejected'
+$inconsistentRect=[pscustomobject]@{Left=0;Top=0;Right=100;Bottom=100;Width=99;Height=100}
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentGeometry $inconsistentRect $addressRect $windowRect)) 'inconsistent rectangle bounds rejected'
+$missingRect=[pscustomobject]@{Left=0;Top=0;Right=100;Bottom=100;Width=100}
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentGeometry $missingRect $addressRect $windowRect)) 'missing rectangle dimension rejected'
+$nanRect=[pscustomobject]@{Left=[double]::NaN;Top=0;Right=100;Bottom=100;Width=100;Height=100}
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentGeometry $nanRect $addressRect $windowRect)) 'non-finite rectangle rejected'
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentCandidate -DocumentTitle 'Artifact Relay Manager' -ExpectedTitle 'Artifact Relay Manager' -IsVisible $true -IsDocument $false -IsRootWebArea $true -DocumentRect $observedBrowserRect -AddressBarRect $addressRect -WindowRect $windowRect)) 'non-Document control rejected'
+Assert-ResolveTest (-not (Test-BridgeBrowserDocumentCandidate -DocumentTitle 'Artifact Relay Manager' -ExpectedTitle 'Artifact Relay Manager' -IsVisible $true -IsDocument $true -IsRootWebArea $false -DocumentRect $observedBrowserRect -AddressBarRect $addressRect -WindowRect $windowRect)) 'non-RootWebArea document rejected'
 $tabBase=[pscustomobject]@{Status='OK';RuntimeKey='offline:tab:1';VisibleCount=2}
 $conversationUrl='https://chatgpt.com/c/11111111-2222-3333-4444-555555555555'
 $script:addressReads=0
@@ -143,6 +173,8 @@ Assert-ResolveTest ($freshGateAt -ge 0 -and $invokeAt -gt $freshGateAt) 'failed 
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_ALREADY_ON_EXPECTED_ID'")) 'initial match must not imply action evidence'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_BASELINE_NOT_VERIFIED' 'BROWSER_BASELINE'")) 'invocation requires a verified existing browser conversation'
 Assert-ResolveTest ($source.Contains('if($obs.ConversationId -ne $expected){continue}')) 'expected ID comparison mandatory'
+Assert-ResolveTest ($source.Contains('Test-BridgeBrowserDocumentCandidate -DocumentTitle ([string]$d.Current.Name)')) 'browser document uses tested candidate predicate'
+Assert-ResolveTest ($source.Contains('return ($found -eq 1)')) 'exactly one qualifying browser document required'
 Assert-ResolveTest ($source.Contains('Get-BridgeConversationAddress -ReadAddress $addressReader -ReadTab $tabReader')) 'resolver uses bounded stable-tab address reader'
 Assert-ResolveTest ($source.Contains("-TimeoutMilliseconds 2000 -PollIntervalMilliseconds 125")) 'resolver address polling bounded to two seconds'
 Assert-ResolveTest ($source.Contains('Get-ResolveBrowserObservation -Handle $handle -Root $root -FocusAddress')) 'resolver explicitly focuses once before baseline address read'

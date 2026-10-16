@@ -227,13 +227,12 @@ function Test-ResolveBrowserDocument {
     for($i=0;$i -lt $all.Count;$i++){
         try {
             $d=$all.Item($i)
-            if($d.Current.ControlType -ne [System.Windows.Automation.ControlType]::Document -or
-               $d.Current.IsOffscreen -or
-               -not [string]::Equals([string]$d.Current.Name,$Title,[System.StringComparison]::Ordinal)){continue}
             $b=$d.Current.BoundingRectangle
-            if($b.Top -gt $rect.Top -and $b.Left -ge ($rect.Left - 60) -and
-               $b.Right -gt $rect.Left -and $b.Width -gt 150 -and
-               $b.Width -lt (0.8 * $Root.Current.BoundingRectangle.Width)){ $found++ }
+            if(Test-BridgeBrowserDocumentCandidate -DocumentTitle ([string]$d.Current.Name) `
+                -ExpectedTitle $Title -IsVisible (-not $d.Current.IsOffscreen) `
+                -IsDocument ($d.Current.ControlType -eq [System.Windows.Automation.ControlType]::Document) `
+                -IsRootWebArea ([string]$d.Current.AutomationId -ceq 'RootWebArea') `
+                -DocumentRect $b -AddressBarRect $rect -WindowRect $Root.Current.BoundingRectangle){$found++}
         }catch{}
     }
     return ($found -eq 1)
