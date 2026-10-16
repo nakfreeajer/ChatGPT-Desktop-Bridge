@@ -94,8 +94,8 @@ From the repository root:
 .\src\Bridge.Resolve.ps1 -ConversationTitle 'Artifact Relay Manager' -ExpectedConversationId $global:BridgeArmExpectedId -OpenInBrowser
 ~~~
 
-The `$global:BridgeArmExpectedId` example assumes the user previously captured the ARM ID in the **same PowerShell session**; it is not saved by the script. Do not commit or print private conversation IDs/URLs. M02-D.13 **Windows runtime qualification is pending**.
+The `$global:BridgeArmExpectedId` example assumes the user previously captured the ARM ID in the **same PowerShell session**; it is not saved by the script. Do not commit or print private conversation IDs/URLs. M02-D.13 has now received a user-reported Windows **offline** result of `33/33 PASS`. Across the three suites, `71/71` assertions passed. Its **live integrated preflight and invocation are still pending**.
 
 ## Release status
 
-**M00 documentation, M02-A/M02-C supervised navigation evidence and M02-D.13 unqualified integrated menu-to-ID prototype.** No background service, installer, message delivery, integration, or production release is included. Milestones are proposed unless explicitly recorded as approved, and prior experimental PASS results are not production acceptance results.
+**M00 documentation, M02-A/M02-C supervised navigation evidence and M02-D.13 offline-qualified, live-unqualified integrated menu-to-ID prototype.** No background service, installer, message delivery, integration, or production release is included. Milestones are proposed unless explicitly recorded as approved, and prior experimental PASS results are not production acceptance results.
