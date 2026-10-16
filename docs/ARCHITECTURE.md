@@ -34,8 +34,8 @@ The menu ancestry proves a document-scoped popup association in the observed UIA
 
 - M02-D.15P is **PASS_CONTROLLED_INTEGRATED** for one human-supervised run. The human-reported transition was `EXISTING_TAB_ACTIVATED` with two visible tabs; no new-tab behavior is assumed.
 - M02-D.15O separately verified the corrected browser-document predicate with read-only UIA.
-- Offline suites pass 196/196 assertions across five Windows PowerShell 5.1 suites. Window selection decisions are offline-qualified; native enumeration has not been live-qualified.
-- Native window enumeration against the live ChatGPT application, duplicate/renamed/hidden conversations, lifecycle changes and focus/tab races remain unqualified.
+- Offline suites pass 196/196 assertions across five Windows PowerShell 5.1 suites. Separately, M02-E.1C-R1 verified the native selector against two stable snapshots in one observed Windows 10 configuration: one qualifying candidate, 15 excluded ChatGPT-owned auxiliary windows, and `WS_POPUP` filtering compatible with the observed main window.
+- The native observation did not run the full resolver or UIA workflow. General multi-window routing, duplicate/renamed/hidden conversations, lifecycle changes, HWND reuse and focus/tab races remain unqualified.
 
 ## Future delivery boundary
 

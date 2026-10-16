@@ -1,6 +1,6 @@
 # Next milestones and decision gates
 
-**Updated:** 2026-10-16, after BRIDGE.M02-E.1B offline safety hardening.
+**Updated:** 2026-10-16, after BRIDGE.M02-E.1C-R1 native window-selector qualification.
 
 ## Current milestone status
 
@@ -18,14 +18,16 @@
 | BRIDGE.M02-D.15N | `OFFLINE_QUALIFIED`; commit `8231d97f1cd276b76d0fd2a70bdc5133995d3277`. | Corrected browser-document horizontal containment while preserving identity, title, visibility, placement, width and uniqueness checks. |
 | BRIDGE.M02-D.15O | `LIVE_DOCUMENT_VERIFIED` | Read-only live UIA check found exactly one qualifying ARM browser document and stable selected tab. |
 | BRIDGE.M02-D.15P | `PASS_CONTROLLED_INTEGRATED` (human-run, Architect accepted) | Existing ARM browser tab activated; expected browser identity/document and tab stability verified. `MainDesktopBound=false`; no chat message submitted. |
-| BRIDGE.M02-E.1B | IMPLEMENTED_OFFLINE_QUALIFIED | Top-level ChatGPT window enumeration/selection, operation-local HWND/process revalidation, and ambiguity/change regressions passed offline. Native enumeration and all live UIA behavior remain unqualified. |
+| BRIDGE.M02-E.1B | IMPLEMENTED_OFFLINE_QUALIFIED — ACCEPTED | Top-level ChatGPT window enumeration/selection, operation-local HWND/process revalidation, and ambiguity/change regressions passed offline. |
+| BRIDGE.M02-E.1C | INCONCLUSIVE — HISTORICAL DIAGNOSTIC FAILURE | The temporary observer assigned to PowerShell's read-only `$PID` variable; it yielded no usable native window evidence. |
+| BRIDGE.M02-E.1C-R1 | LIVE_WINDOW_GUARD_VERIFIED — ACCEPTED | Two native snapshots verified one qualifying main-window candidate and production selector `OK` in one observed Windows 10 configuration. This does not qualify full resolver/UIA behavior or general multi-window/lifecycle/race cases. |
 
 Current offline regression baseline: Identity 18/18, TabGuard 20/20, Resolve 97/97, SupervisedLauncher 44/44, WindowGuard 17/17; **196/196**.
 
 ## Remaining gates
 
 - Durable binding from a chosen main Desktop conversation to its immutable ID; current status **UNRESOLVED**.
-- Live qualification of multiple-window routing; duplicate, renamed, reordered, hidden or stale sidebar targets;
+- General multi-window routing, duplicate, renamed, reordered, hidden or stale sidebar targets; the native selector was live-qualified only for one observed Windows 10 configuration.
 - Focus and selected-tab races between verification points; repeated-run and unattended reliability.
 - Post-navigation page-readiness status specificity. Cloudflare was reported during one failed run, but its causal role is **unproven**; no challenge detection or bypass is implemented.
 - Any future chat-message insertion/submission requires separate approval, disposable targets, identity and authorization review, delivery semantics, duplicate protection, and ambiguous-outcome recovery. Message submission is not implemented or authorized.

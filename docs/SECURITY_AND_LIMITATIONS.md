@@ -30,7 +30,7 @@ Do not put private UUIDs or conversation URLs in source, arguments, environment 
 
 ## Not qualified or not implemented
 
-- Live qualification of the top-level window enumerator; duplicate, renamed, reordered, hidden or stale sidebar targets; app/session lifecycle changes.
+- General multi-window routing beyond the one observed Windows 10 native-selector configuration; duplicate, renamed, reordered, hidden or stale sidebar targets; app/session lifecycle changes. The native observation did not run the full resolver or UIA workflow.
 - Restarts, updates, session lock/unlock, app lifecycle changes, accessibility tree changes and browser tab/focus races between checks.
 - General reliability or unattended operation beyond the one controlled M02-D.15P scenario.
 - Durable binding from the main Desktop panel/sidebar element to an immutable conversation ID.

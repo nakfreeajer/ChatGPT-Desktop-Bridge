@@ -26,11 +26,11 @@ Run from Windows PowerShell 5.1 at the repository root:
 .\tests\WindowGuard.Offline.Tests.ps1
 ~~~
 
-Latest offline qualification: Identity 18/18, TabGuard 20/20, Resolve 97/97, SupervisedLauncher 44/44, WindowGuard 17/17 — **196/196 assertions PASS**. Offline tests do not interact with ChatGPT Desktop or live-qualify native window enumeration.
+Latest offline qualification: Identity 18/18, TabGuard 20/20, Resolve 97/97, SupervisedLauncher 44/44, WindowGuard 17/17 — **196/196 assertions PASS**. Separately, M02-E.1C-R1 verified the native window selector in one observed Windows 10 configuration; this did not run the resolver or UIA workflow.
 
 ## Documentation
 
-- [Failure and recovery register](docs/FAILURE_AND_RECOVERY_REGISTER.md) — canonical detailed chronology through M02-E.1B, including failures, corrections and evidence limits.
+- [Failure and recovery register](docs/FAILURE_AND_RECOVERY_REGISTER.md) — canonical detailed chronology through M02-E.1C-R1, including failures, corrections and evidence limits.
 - [Investigation log](docs/INVESTIGATION_LOG.md) — concise timeline index.
 - [Verified findings](docs/VERIFIED_FINDINGS.md) — evidence classifications and current status.
 - [Architecture](docs/ARCHITECTURE.md) — current components and resolver control flow.
@@ -41,6 +41,6 @@ Latest offline qualification: Identity 18/18, TabGuard 20/20, Resolve 97/97, Sup
 
 ## Safety boundary
 
-The main Desktop UI and embedded browser are separate surfaces. Titles are mutable and may be duplicated; RuntimeIds and window handles are ephemeral. The top-level window selector has offline decision coverage but has not been live-qualified against ChatGPT Desktop. A parsed browser URL is not proof of permanent main-panel identity. Duplicate or renamed conversations, lifecycle changes and focus/tab races remain unqualified. Cloudflare was reported during one earlier run, but its role was not established; the Bridge does not detect, bypass or automate challenge verification.
+The main Desktop UI and embedded browser are separate surfaces. Titles are mutable and may be duplicated; RuntimeIds and window handles are ephemeral. The top-level window selector passed offline decision coverage and a bounded native qualification in one observed Windows 10 configuration; this is not full resolver/UIA or general multi-window qualification. A parsed browser URL is not proof of permanent main-panel identity. Duplicate or renamed conversations, lifecycle changes and focus/tab races remain unqualified. Cloudflare was reported during one earlier run, but its role was not established; the Bridge does not detect, bypass or automate challenge verification.
 
 Do not submit a message or run a live launcher mode without separate human authorization and supervision. Never put private IDs, conversation URLs, credentials or chat content in source, command lines, environment variables, logs, tests or reports.

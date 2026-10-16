@@ -13,7 +13,7 @@ Use **Windows PowerShell 5.1** from the repository root. These five scripts exer
 git diff --check
 ~~~
 
-Latest verified output: Identity **18/18**, TabGuard **20/20**, Resolve **97/97**, SupervisedLauncher **44/44**, WindowGuard **17/17**; **196/196 assertions PASS**. Window decision tests are offline; native enumeration was not exercised against a live ChatGPT window.
+Latest verified output: Identity **18/18**, TabGuard **20/20**, Resolve **97/97**, SupervisedLauncher **44/44**, WindowGuard **17/17**; **196/196 assertions PASS**. Window decision tests are offline. A separate M02-E.1C-R1 diagnostic live-qualified native selector behavior in one observed Windows 10 configuration; offline suites do not exercise native enumeration, the full resolver or live UIA.
 
 ## Supervised resolver launcher
 
