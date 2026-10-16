@@ -45,7 +45,7 @@ Experimental UI Automation research on a live Windows desktop session; **not an 
 - To navigate, it uses `SendKeys('{ENTER}')` only while a focused, visible ListItem matches the expected target URL and adjacent address control, and only with a verified foreground window. **This is still vulnerable to time-of-check/time-of-use focus races.**
 - Before any controlled test, both message composers must have empty drafts; never run an unqualified keyboard-navigation prototype unattended or against valuable unsent content.
 - A successful `VERIFIED_BROWSER_ROUTE` means the **embedded browser** URL and a candidate document/editor were observed; it is not a server acknowledgement, a full page-readiness proof, or a guarantee about the separate main Desktop panel.
-- No messaging capability is implemented, and runtime qualification remains pending. No sensitive IDs should be committed to the public repo or printed as logs.
+- No messaging capability is implemented. M02-A passed supervised browser inspection and navigation; unattended operation is not qualified. No sensitive IDs should be committed to the public repo or printed as logs.
 
 ## M02-C selected-tab guard (2026-10-16)
 
@@ -53,7 +53,7 @@ Experimental UI Automation research on a live Windows desktop session; **not an 
 - `Bridge.TabGuard.ps1` checks exactly one selected tab, using relative position to the browser address control plus UIA selection state. It records only an ephemeral RuntimeId **in memory**, never in output or committed fixtures.
 - The selected tab and tab count must remain stable before address insertion, during autocomplete, just before global Enter, during post-navigation verification, and on the final check. Ambiguous/missing/changed selection fails closed.
 - The guard cannot prevent a focus switch in the fraction of time between final check and the global Enter. It also cannot infer the main Desktop conversation's immutable ID, guarantee active window routing across multiple Desktop windows, or prove that a rendered page's content is fresh.
-- M02-C has source and offline tests committed; **no human Windows runtime result yet**. Use supervised tests with empty drafts only.
+- M02-C received human-run Windows results: 20/20 offline checks, supervised one-tab inspection/navigation, and a two-tab blank-selected mismatch rejection all PASS. Deliberate tab switching mid-navigation remains unqualified; use supervised tests with empty drafts only.
 
 ## M02-D.13 identity correlation limitations
 
@@ -63,3 +63,9 @@ Experimental UI Automation research on a live Windows desktop session; **not an 
 - The script rechecks the selected tab, URL, and browser document after menu invocation, reports a transition category, and returns `MainDesktopBound=false`. It does not control external browsers or equate a name match with permanent main-Desktop identity binding.
 - A UIA race or unexpected ChatGPT Desktop update may cause false negatives or unforeseen menu behavior; no unattended or production use is qualified. Browser tab transitions during UIA polling are not guaranteed detectable between snapshots.
 - The browser URL and ID are compared only in memory; output omits titles, private IDs, URLs, and UIA RuntimeIds. No composer writes, keyboard SendKeys or chat Send invocation is implemented.
+
+## M02-D.13 qualification update (2026-10-16)
+
+Human-provided Windows PowerShell output confirms offline suites `18/18`, `20/20`, and `33/33`, **71/71 assertions PASS** across M02-A, M02-C and M02-D.13. These offline checks test parser/pure helper/source invariants, **not runtime proof** of `Bridge.Resolve.ps1`.
+
+The integrated resolver's actual live preflight and opt-in menu invocation have **not** yet been executed. Distinguish previously successful manually assembled UIA commands from the new integrated script. Continue to report `MainDesktopBound=false`, do not infer browser tab creation behavior without evidence, and never promote URL/title correlation to unattended identity assurance.
