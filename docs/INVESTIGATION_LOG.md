@@ -1,6 +1,6 @@
 # Investigation log
 
-This is the chronological index of project evidence through BRIDGE.M02-E.1C-R1.
+This is the chronological index of project evidence through BRIDGE.MAIN.1E.FIX1.
 
 ## Chronology
 
@@ -18,10 +18,11 @@ This is the chronological index of project evidence through BRIDGE.M02-E.1C-R1.
 | M02-D.15O / 15P | Corrected document recognition passed a live read-only UIA check. One human-run supervised integrated qualification passed and activated an existing ARM browser tab. | [Live verification and integrated qualification](FAILURE_AND_RECOVERY_REGISTER.md#9-live-verification-and-integrated-qualification) |
 | M02-E.1A / E.1B | Source review identified that process count plus MainWindowHandle did not establish a unique top-level conversation window. A shared native enumerator, fail-closed window decision helper and pre-expansion/pre-invocation rechecks were added with offline negative coverage. | [Window ambiguity hardening](FAILURE_AND_RECOVERY_REGISTER.md#10-top-level-window-ambiguity-offline-hardening-and-native-qualification) |
 | M02-E.1C / E.1C-R1 | The first temporary observer failed on assignment to PowerShell's read-only `$PID`; it was classified inconclusive. The repaired observer passed 4/4 synthetic checks and captured two stable native snapshots: 335 raw top-level windows, 16 ChatGPT-owned, one qualifying candidate, 15 excluded auxiliary windows. The production selector returned `OK`; `WS_POPUP` filtering matched the observed main window. | [Window ambiguity hardening](FAILURE_AND_RECOVERY_REGISTER.md#10-top-level-window-ambiguity-offline-hardening-and-native-qualification) |
-
+| BRIDGE.MAIN.1A / 1B | Main-panel structure was inspected and the composer/Edit and Send metadata were identified in the observed configuration; immutable main identity remained unresolved. | [Main-panel locator and FIX1](FAILURE_AND_RECOVERY_REGISTER.md#11-main-panel-composer-predicate-locator-and-fix1) |
+| BRIDGE.MAIN.1E / FIX1 | Pure composer predicate, structural Main/Conversation locator, Document-specific human-anchored evidence and final fresh uniqueness checks were added. Seven offline suites passed 261/261. Runtime locator remains unqualified live. | [Main-panel locator and FIX1](FAILURE_AND_RECOVERY_REGISTER.md#11-main-panel-composer-predicate-locator-and-fix1) |
 ## Current qualification
 
-- Offline Windows PowerShell 5.1 suites: Identity **18/18**, TabGuard **20/20**, Resolve **97/97**, SupervisedLauncher **44/44**, WindowGuard **17/17**; **196/196** total.
+- Offline Windows PowerShell 5.1 suites: Identity **18/18**, TabGuard **20/20**, Resolve **97/97**, SupervisedLauncher **44/44**, WindowGuard **17/17**, MainComposer.Predicate **22/22**, MainPanel.Locator **43/43**; **261/261** total.
 - M02-E.1C-R1: native window selection was verified in one observed Windows 10 configuration. This did not exercise the full resolver or UIA workflow and does not qualify general multi-window, lifecycle or race behavior.
 - M02-D.15P: `PASS_CONTROLLED_INTEGRATED` for one supervised run. The reported tab transition was `EXISTING_TAB_ACTIVATED`; two tabs were visible. The existing ARM tab became selected.
 - `MainDesktopBound=false`. The result is controlled browser identity correlation, not durable identity binding for the separate main Desktop panel.

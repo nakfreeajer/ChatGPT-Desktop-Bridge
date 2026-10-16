@@ -1,6 +1,6 @@
 # Next milestones and decision gates
 
-**Updated:** 2026-10-16, after BRIDGE.M02-E.1C-R1 native window-selector qualification.
+**Updated:** 2026-10-17, after BRIDGE.MAIN.1E.FIX1 offline qualification.
 
 ## Current milestone status
 
@@ -22,11 +22,18 @@
 | BRIDGE.M02-E.1C | INCONCLUSIVE — HISTORICAL DIAGNOSTIC FAILURE | The temporary observer assigned to PowerShell's read-only `$PID` variable; it yielded no usable native window evidence. |
 | BRIDGE.M02-E.1C-R1 | LIVE_WINDOW_GUARD_VERIFIED — ACCEPTED | Two native snapshots verified one qualifying main-window candidate and production selector `OK` in one observed Windows 10 configuration. This does not qualify full resolver/UIA behavior or general multi-window/lifecycle/race cases. |
 
-Current offline regression baseline: Identity 18/18, TabGuard 20/20, Resolve 97/97, SupervisedLauncher 44/44, WindowGuard 17/17; **196/196**.
+Current offline regression baseline: Identity 18/18, TabGuard 20/20, Resolve 97/97, SupervisedLauncher 44/44, WindowGuard 17/17, MainComposer.Predicate 22/22, MainPanel.Locator 43/43; **261/261**.
+
+## Main-panel status
+
+| Milestone | Status | Evidence and boundary |
+|---|---|---|
+| BRIDGE.MAIN.1A / 1B | Main Desktop structural discovery only; identity unresolved. | Accessibility Insights established the observed Document/Main/Conversation/Edit path and Send control metadata. No live production locator or identity binding resulted. |
+| BRIDGE.MAIN.1E | Offline predicate and structural locator implemented; FIX1 offline-qualified. | Human-anchored, Document-specific evidence and fresh final uniqueness checks. Seven suites pass 261/261. Runtime locator has not been live-qualified; `MainDesktopBound=false`; no message submission. |
 
 ## Remaining gates
 
-- Durable binding from a chosen main Desktop conversation to its immutable ID; current status **UNRESOLVED**.
+- Automatic main Document identification and durable binding from a chosen main Desktop conversation to its immutable ID; current status **UNRESOLVED**. Human-anchored evidence does not independently rule out a mistakenly selected browser surface with similar structure. The runtime locator still requires live qualification.
 - General multi-window routing, duplicate, renamed, reordered, hidden or stale sidebar targets; the native selector was live-qualified only for one observed Windows 10 configuration.
 - Focus and selected-tab races between verification points; repeated-run and unattended reliability.
 - Post-navigation page-readiness status specificity. Cloudflare was reported during one failed run, but its causal role is **unproven**; no challenge detection or bypass is implemented.

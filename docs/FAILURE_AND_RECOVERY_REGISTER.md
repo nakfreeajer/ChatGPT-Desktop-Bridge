@@ -147,3 +147,17 @@ The accepted M02-E.1C-R1 result verifies native enumeration and the production w
 ### Remaining boundary
 
 This correction closes the process-count versus top-level-window-count gap at the source and tests its decision logic offline. The live result establishes native selector compatibility only for the observed Windows 10 configuration; it does not establish durable main Desktop conversation identity, protection against all HWND reuse/lifecycle races, or qualification of duplicate/renamed sidebar targets under live UIA. MainDesktopBound=false and the no-message-submission boundary remain unchanged.
+
+## 11. Main-panel composer predicate, locator and FIX1
+
+| Finding or correction | Behavior and retained safeguard | Evidence and limit |
+|---|---|---|
+| Accessibility Insights established the observed main-panel structure. | `Window > Document > main > region Conversation > Edit Ask ChatGPT`; the Edit exposed textbox semantics, `ValuePattern` and `TextPattern`. A Send Button was visible beneath the conversation region. No draft or message content was read. | **OBSERVED - HUMAN-REPORTED.** This is one observed UI configuration; it does not identify the main Document automatically. |
+| `BRIDGE.MAIN.1E` added `Bridge.MainComposer.Predicate.ps1` and a structural main-panel locator. | The locator uses the Main landmark and exact Conversation region, traverses only the supplied Document with node/depth bounds, prunes nested Documents, requires unique composer/Send metadata and rechecks selected controls. The Send control is never invoked. | **SOURCE-VERIFIED / OFFLINE-QUALIFIED.** Synthetic selection tests do not establish live UIA ancestry. |
+| FIX1 replaced Boolean-only ownership with Document-specific human-anchored evidence. | Evidence is derived from a selected UIA element's ancestry through Main/Conversation to the selected qualified window root, binds to the exact Document object, and is revalidated. Missing, mismatched, stale and unsupported evidence fails closed. Evidence classification remains `HUMAN_ANCHORED`; `MainDesktopBound=false` and conversation identity `UNRESOLVED`. | **SOURCE-VERIFIED / OFFLINE-QUALIFIED.** This is not independent or immutable conversation identity. If the human mistakenly anchors a browser surface with similar structure, the evidence does not independently distinguish it. |
+| FIX1 added fresh final uniqueness verification. | A bounded second enumeration of the same Conversation region requires exactly one eligible `Ask ChatGPT` Edit and one eligible `Send` Button and checks that both match the original UIA elements. It returns only an operation-local snapshot; later UIA changes remain possible. | **SOURCE-VERIFIED / OFFLINE-QUALIFIED.** No live runtime qualification has been performed. |
+| Seven offline suites pass. | Identity 18, TabGuard 20, Resolve 97, SupervisedLauncher 44, WindowGuard 17, MainComposer.Predicate 22 and MainPanel.Locator 43 assertions. | **OFFLINE-QUALIFIED: 261/261.** No live UIA or message submission occurred. |
+
+### Remaining main-panel limits
+
+Automatic main Document identification, independent exclusion of a mistakenly selected browser surface, and immutable main-conversation identity remain unresolved. `MainDesktopBound=false`. Runtime locator operation has not been live-qualified. Message insertion/submission remains unimplemented and unauthorized.

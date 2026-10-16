@@ -2,7 +2,7 @@
 
 ## Offline qualification
 
-Use **Windows PowerShell 5.1** from the repository root. These five scripts exercise syntax, pure helpers and source guards; they do not access or change the ChatGPT Desktop UI.
+Use **Windows PowerShell 5.1** from the repository root. These seven scripts exercise syntax, pure helpers and source guards; they do not access or change the ChatGPT Desktop UI.
 
 ~~~powershell
 .\tests\Identity.Offline.Tests.ps1
@@ -10,10 +10,14 @@ Use **Windows PowerShell 5.1** from the repository root. These five scripts exer
 .\tests\Resolve.Offline.Tests.ps1
 .\tests\SupervisedLauncher.Offline.Tests.ps1
 .\tests\WindowGuard.Offline.Tests.ps1
+.\tests\MainComposer.Predicate.Offline.Tests.ps1
+.\tests\MainPanel.Locator.Offline.Tests.ps1
 git diff --check
 ~~~
 
-Latest verified output: Identity **18/18**, TabGuard **20/20**, Resolve **97/97**, SupervisedLauncher **44/44**, WindowGuard **17/17**; **196/196 assertions PASS**. Window decision tests are offline. A separate M02-E.1C-R1 diagnostic live-qualified native selector behavior in one observed Windows 10 configuration; offline suites do not exercise native enumeration, the full resolver or live UIA.
+Latest verified output: Identity **18/18**, TabGuard **20/20**, Resolve **97/97**, SupervisedLauncher **44/44**, WindowGuard **17/17**, MainComposer.Predicate **22/22**, MainPanel.Locator **43/43**; **261/261 assertions PASS**. Window decision tests are offline. A separate M02-E.1C-R1 diagnostic live-qualified native selector behavior in one observed Windows 10 configuration; offline suites do not exercise native enumeration, the full resolver or live UIA.
+
+The two main-panel suites qualify pure selection and synthetic ownership/final-snapshot decisions only. They do not qualify the runtime locator against live UIA.
 
 ## Supervised resolver launcher
 

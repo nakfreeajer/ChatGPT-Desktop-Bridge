@@ -14,6 +14,10 @@ This is an experimental UI Automation proof of concept for a logged-in interacti
 - A parsed conversation URL must equal the independently supplied expected UUID. A title or parseable URL alone does not pass identity verification.
 - The corrected browser-document geometry requires a visible exact-title RootWebArea Document that contains the address bar horizontally, lies below it, and passes width bounds; exactly one must qualify. Geometry and title remain supporting UI evidence, not permanent main-panel binding.
 
+## Main-panel locator boundary
+
+The offline locator accepts only human-anchored evidence associated with the exact Document and rechecks its ancestry to the selected window root through `Main` and `Conversation`. A Boolean claim alone is insufficient. The evidence is not immutable conversation identity, does not set `MainDesktopBound=true`, and cannot independently detect a mistakenly selected browser surface with similar UIA structure. Automatic main Document identification and live runtime qualification remain unresolved. The locator reads no message or draft contents and never invokes Send.
+
 ## Private baseline handling
 
 `Bridge.Resolve.Supervised.ps1` requests the expected ARM UUID with `Read-Host -AsSecureString`, validates it in the current Windows PowerShell process, clears its temporary BSTR and calls the resolver in-process. It provides separate preflight-only and invocation modes; invocation requires a different selected-browser baseline and exact human confirmation `OPEN` before one resolver call. Its sanitized report omits UUIDs and URLs.
@@ -33,7 +37,7 @@ Do not put private UUIDs or conversation URLs in source, arguments, environment 
 - General multi-window routing beyond the one observed Windows 10 native-selector configuration; duplicate, renamed, reordered, hidden or stale sidebar targets; app/session lifecycle changes. The native observation did not run the full resolver or UIA workflow.
 - Restarts, updates, session lock/unlock, app lifecycle changes, accessibility tree changes and browser tab/focus races between checks.
 - General reliability or unattended operation beyond the one controlled M02-D.15P scenario.
-- Durable binding from the main Desktop panel/sidebar element to an immutable conversation ID.
+- Automatic identification of the main Desktop Document, durable binding from the main Desktop panel/sidebar element to an immutable conversation ID, and live qualification of the new runtime locator.
 - Chat message insertion/submission, server receipt, delivery acknowledgement, request idempotency, duplicate prevention or uncertain-send recovery. Message delivery remains `NOT_ASSESSED`; no message submission is authorized.
 
 Prefer a visible failure to acting on an uncertain destination. An invoked UIA control is not proof of server-side success. Do not blindly retry an ambiguous operation.

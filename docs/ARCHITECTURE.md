@@ -17,6 +17,8 @@ It is **not** an Orchestrator, a messaging integration, or a production transpor
 | `src/Bridge.Resolve.Helpers.ps1` | Pure transition, menu snapshot, address polling and document-geometry helpers. |
 | `src/Bridge.Resolve.ps1` | Preflight by default; explicit `-OpenInBrowser` invokes one sidebar menu item and verifies the resulting browser route/document/tab. |
 | `src/Bridge.Resolve.Supervised.ps1` | Interactive secure wrapper: hidden expected-ID input, read-only preflight, selected-browser mismatch check, literal human `OPEN`, one in-process resolver invocation, sanitized result. |
+| `src/Bridge.MainComposer.Predicate.ps1` | Pure offline eligibility decision for one Edit candidate inside supplied Document geometry. |
+| `src/Bridge.MainPanel.Locator.ps1` | Human-anchored main-panel ownership evidence, bounded Document-scoped Main/Conversation selection, composer/Send metadata and final uniqueness revalidation. It never writes or invokes controls. |
 
 ## Resolver sequence
 
@@ -34,9 +36,14 @@ The menu ancestry proves a document-scoped popup association in the observed UIA
 
 - M02-D.15P is **PASS_CONTROLLED_INTEGRATED** for one human-supervised run. The human-reported transition was `EXISTING_TAB_ACTIVATED` with two visible tabs; no new-tab behavior is assumed.
 - M02-D.15O separately verified the corrected browser-document predicate with read-only UIA.
-- Offline suites pass 196/196 assertions across five Windows PowerShell 5.1 suites. Separately, M02-E.1C-R1 verified the native selector against two stable snapshots in one observed Windows 10 configuration: one qualifying candidate, 15 excluded ChatGPT-owned auxiliary windows, and `WS_POPUP` filtering compatible with the observed main window.
+- Seven Windows PowerShell 5.1 offline suites pass 261/261 assertions. Separately, M02-E.1C-R1 verified the native selector against two stable snapshots in one observed Windows 10 configuration: one qualifying candidate, 15 excluded ChatGPT-owned auxiliary windows, and `WS_POPUP` filtering compatible with the observed main window.
 - The native observation did not run the full resolver or UIA workflow. General multi-window routing, duplicate/renamed/hidden conversations, lifecycle changes, HWND reuse and focus/tab races remain unqualified.
 
+## Main-panel locator (offline-qualified only)
+
+Accessibility Insights established the observed structural path `Window > Document > main > region Conversation > Edit Ask ChatGPT`. The Edit exposed textbox semantics, `ValuePattern` and `TextPattern`; the locator reads only structural metadata and `ValuePattern.IsReadOnly`. It does not read draft/message contents. The Send Button is discovered as metadata only and is never invoked.
+
+The runtime locator requires an evidence record tied to the exact supplied Document. Its supervised evidence is derived from a human-selected UIA element's ancestry through the `Main` landmark and `Conversation` region to the selected qualified window root. It rechecks that ancestry and freshly enumerates the same region for unique eligible composer and Send controls immediately before returning. This snapshot is operation-local and has not been live-qualified. A human could mistakenly anchor a browser surface with a similar structure; the mechanism does not independently distinguish that case. Automatic main Document identification and immutable main-conversation identity remain unresolved. `MainDesktopBound=false` remains mandatory.
 ## Future delivery boundary
 
 The long-term goal may include explicitly authorized message insertion and submission by a separate, approved design. Those capabilities are **not implemented or authorized** by the current Bridge. Any future interface must revalidate destination identity close to the action, distinguish UI action from server acknowledgement, carry caller authorization, define request IDs/idempotency, and fail closed on uncertainty. No blind retry after an ambiguous send is acceptable.
