@@ -1,6 +1,6 @@
 # Failure and recovery register
 
-**Scope:** ChatGPT Desktop Bridge, Windows PowerShell 5.1, native Windows UI Automation, through BRIDGE.M02-D.15P.CLOSE and documentation consolidation. Only this repository is in scope.
+**Scope:** ChatGPT Desktop Bridge, Windows PowerShell 5.1, native Windows UI Automation, through BRIDGE.M02-E.1B offline safety hardening. Only this repository is in scope.
 
 This is the canonical detailed chronology of the observed failures, source diagnoses, corrections and qualification boundaries. The [GitHub curator issue](https://github.com/nakfreeajer/ChatGPT-Desktop-Bridge/issues/1) is the originating handover. The [investigation log](INVESTIGATION_LOG.md) is a short index; other documents summarize current behavior rather than repeat this register.
 
@@ -123,3 +123,16 @@ Titles classify visible UIA elements; they are not immutable conversation identi
 - No message insertion or submission is implemented or authorized. There is no delivery acknowledgement, idempotency ledger, duplicate prevention or ambiguous-send recovery.
 - No unattended operation, repeated-cycle reliability, universal Windows/app-version compatibility, or production release is qualified.
 - Never place private UUIDs, conversation URLs, chat content, credentials, cookies or ephemeral RuntimeIds in documentation, command lines, environment variables, logs or tests.
+
+## 10. Top-level window ambiguity and offline hardening
+
+| Finding or correction | Behavior and retained safeguard | Evidence and limit |
+|---|---|---|
+| M02-E.1A source review found that Get-ResolveWindow counted ChatGPT processes with nonzero MainWindowHandle, rather than enumerating top-level ChatGPT windows. | Two separate ChatGPT processes were rejected as ambiguous, but multiple qualifying top-level windows in one process were not reliably represented by that count. This was a source-confirmed selection weakness, not a live reproduction. | **SOURCE-VERIFIED.** No live UIA/window operation was performed for M02-E.1A or E.1B. |
+| M02-E.1B defines a qualifying conversation window. | Enumerate top-level HWNDs; qualify only visible, enabled, ownerless windows from ChatGPT.exe that are not child, popup or WS_EX_TOOLWINDOW windows. Owned/tool/popup windows are excluded as transient UI. Reject incomplete enumeration or incomplete candidate metadata. | **SOURCE-VERIFIED.** This definition is explicit and has synthetic offline decision coverage; compatibility with every ChatGPT Desktop build is not live-qualified. |
+| The resolver and supervised launcher use the shared window guard. | Selection requires exactly one qualifying candidate. The resolver retains HWND and process ID as operation-local evidence and re-enumerates to verify the same unique candidate immediately before menu expansion and immediately before the one menu-item invocation. A missing, replaced, newly ambiguous or incompletely enumerated window fails closed. | **SOURCE-VERIFIED / OFFLINE-QUALIFIED.** HWND/process ID are not conversation identity. No focus manipulation was added. |
+| Offline regressions cover the window and UIA ambiguity decisions. | Cases cover zero/one/two windows (including two in the same process), transient-window exclusions, incomplete enumeration, disappearance/replacement, ambiguous candidate sets, duplicate sidebar rows/buttons, renamed/disappeared or replaced targets, stale menu item, tab identity/count changes, and MainDesktopBound=false. | **OFFLINE-QUALIFIED.** Identity 18, TabGuard 20, Resolve 97, SupervisedLauncher 44, WindowGuard 17; **196/196 assertions PASS** in Windows PowerShell 5.1. Native enumeration and live UIA timing are not exercised by these tests. |
+
+### Remaining boundary
+
+This correction closes the process-count versus top-level-window-count gap at the source and tests its decision logic offline. It does not establish live compatibility of the Win32 style-based qualifier, durable main Desktop conversation identity, protection against all HWND reuse/lifecycle races, or qualification of duplicate/renamed sidebar targets under live UIA. MainDesktopBound=false and the no-message-submission boundary remain unchanged.

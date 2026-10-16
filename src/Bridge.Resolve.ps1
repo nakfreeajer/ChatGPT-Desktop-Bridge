@@ -13,26 +13,9 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Bridge.Identity.ps1')
 . (Join-Path $PSScriptRoot 'Bridge.TabGuard.ps1')
 . (Join-Path $PSScriptRoot 'Bridge.Resolve.Helpers.ps1')
+. (Join-Path $PSScriptRoot 'Bridge.WindowGuard.ps1')
 
-$result = [ordered]@{
-    Milestone                 = 'BRIDGE.M02-D.13'
-    Status                    = 'UNVERIFIED'
-    Stage                     = 'PREFLIGHT'
-    MainTitleVerified         = $false
-    SidebarCandidateUnique    = $false
-    MenuStateMismatch         = $false
-    MenuItemInvoked           = $false
-    BrowserIdentityVerified   = $false
-    BrowserDocumentVerified   = $false
-    SelectedTabVerified       = $false
-    TabSelectionStable        = $false
-    BrowserTabTransition      = 'NOT_ASSESSED'
-    VisibleBrowserTabs        = 0
-    MainDesktopBound          = $false
-    ComposerWriteAttempted    = $false
-    ChatSendButtonInvoked     = $false
-    MessageDeliveryStatus     = 'NOT_ASSESSED'
-}
+$result = New-BridgeResolveResult
 function Stop-Resolve {
     param([string]$Code,[string]$At)
     $script:result.Status = $Code
@@ -40,10 +23,21 @@ function Stop-Resolve {
     throw [System.InvalidOperationException]::new($Code)
 }
 function Get-ResolveWindow {
-    $processes = @(Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
-    if ($processes.Count -eq 0) { Stop-Resolve 'WINDOW_NOT_FOUND' 'WINDOW' }
-    if ($processes.Count -ne 1) { Stop-Resolve 'AMBIGUOUS_WINDOW' 'WINDOW' }
-    return [IntPtr]$processes[0].MainWindowHandle
+    $selection=Get-BridgeCurrentWindowSelection
+    if($selection.Status -ne 'OK'){Stop-Resolve ([string]$selection.Status) 'WINDOW'}
+    return $selection
+}
+function Assert-ResolveWindowStable {
+    param($Baseline,[string]$At)
+    $current=Get-BridgeCurrentWindowSelection
+    if($current.Status -ne 'OK'){
+        if($current.Status -eq 'WINDOW_ENUMERATION_FAILED'){Stop-Resolve 'WINDOW_ENUMERATION_FAILED' $At}
+        if($current.Status -eq 'WINDOW_NOT_FOUND'){Stop-Resolve 'WINDOW_CHANGED' $At}
+        Stop-Resolve 'AMBIGUOUS_WINDOW' $At
+    }
+    if(-not (Test-BridgeWindowSelectionStable -Baseline $Baseline.Window -CurrentSelection $current)){
+        Stop-Resolve 'WINDOW_CHANGED' $At
+    }
 }
 function Get-ResolveRoot {
     param([IntPtr]$Handle)
@@ -95,22 +89,25 @@ function Get-ResolveSidebarActions {
         if($x.Current.ControlType -eq [System.Windows.Automation.ControlType]::ListItem -and
             $x.Current.IsEnabled -and -not $x.Current.IsOffscreen){ $items += $x }
     }
-    if($items.Count -ne 1){Stop-Resolve 'SIDEBAR_TARGET_AMBIGUOUS' 'SIDEBAR'}
-    $script:result.SidebarCandidateUnique = $true
-    $bc=[System.Windows.Automation.PropertyCondition]::new(
-        [System.Windows.Automation.AutomationElement]::NameProperty,'Chat actions'
-    )
-    $buttons=$items[0].FindAll([System.Windows.Automation.TreeScope]::Descendants,$bc)
     $usable=@()
-    for($j=0;$j -lt $buttons.Count;$j++){
-        $b=$buttons.Item($j)
-        if($b.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
-            $b.Current.IsEnabled -and -not $b.Current.IsOffscreen -and
-            $b.GetSupportedPatterns() -contains [System.Windows.Automation.ExpandCollapsePattern]::Pattern){
-            $usable += $b
+    if($items.Count -eq 1){
+        $script:result.SidebarCandidateUnique = $true
+        $bc=[System.Windows.Automation.PropertyCondition]::new(
+            [System.Windows.Automation.AutomationElement]::NameProperty,'Chat actions'
+        )
+        $buttons=$items[0].FindAll([System.Windows.Automation.TreeScope]::Descendants,$bc)
+        for($j=0;$j -lt $buttons.Count;$j++){
+            $b=$buttons.Item($j)
+            if($b.Current.ControlType -eq [System.Windows.Automation.ControlType]::Button -and
+                $b.Current.IsEnabled -and -not $b.Current.IsOffscreen -and
+                $b.GetSupportedPatterns() -contains [System.Windows.Automation.ExpandCollapsePattern]::Pattern){
+                $usable += $b
+            }
         }
     }
-    if($usable.Count -ne 1){Stop-Resolve 'CHAT_ACTIONS_AMBIGUOUS' 'SIDEBAR'}
+    $targetStatus=Get-BridgeSidebarTargetStatus -TargetRowCount $items.Count `
+        -ActionButtonCount $usable.Count -TitleMatches ($items.Count -eq 1)
+    if($targetStatus -ne 'OK'){Stop-Resolve $targetStatus 'SIDEBAR'}
     return [pscustomobject]@{Row=$items[0];Button=$usable[0]}
 }
 function Get-ResolveAssociatedMenu {
@@ -246,7 +243,8 @@ try {
     Add-Type -AssemblyName UIAutomationClient
     Add-Type -AssemblyName UIAutomationTypes
     $expected=$ExpectedConversationId.ToLowerInvariant()
-    $handle=Get-ResolveWindow
+    $windowSelection=Get-ResolveWindow
+    $handle=[IntPtr]$windowSelection.Window.Handle
     $root=Get-ResolveRoot $handle
     $result.Stage='MAIN_DOCUMENT'
     [void](Assert-ResolveMainDocument $root $ConversationTitle)
@@ -277,6 +275,7 @@ try {
         if([string]::IsNullOrWhiteSpace($targetRowKey) -or [string]::IsNullOrWhiteSpace($targetButtonKey)){
             Stop-Resolve 'MENU_CONTROLS_STALE' 'EXPAND_MENU'
         }
+        Assert-ResolveWindowStable -Baseline $windowSelection -At 'EXPAND_MENU'
         $ep=$button.GetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern)
         if($ep.Current.ExpandCollapseState -eq [System.Windows.Automation.ExpandCollapseState]::Collapsed){
             $button.SetFocus()
@@ -314,10 +313,11 @@ try {
         $freshTarget=Get-ResolveSidebarActions $freshRoot $ConversationTitle
         $freshRowKey=Get-ResolveRuntimeKey $freshTarget.Row
         $freshButtonKey=Get-ResolveRuntimeKey $freshTarget.Button
-        if([string]::IsNullOrWhiteSpace($freshRowKey) -or [string]::IsNullOrWhiteSpace($freshButtonKey) -or
-            $freshRowKey -cne $targetRowKey -or $freshButtonKey -cne $targetButtonKey){
-            Stop-Resolve 'MENU_TARGET_CHANGED' 'INVOKE_MENU_ITEM'
-        }
+        $targetStatus=Get-BridgeSidebarTargetStatus -TargetRowCount 1 -ActionButtonCount 1 `
+            -TitleMatches ($freshTarget.Row.Current.Name -ceq $ConversationTitle) -RequireStableKeys `
+            -ExpectedRowKey $targetRowKey -CurrentRowKey $freshRowKey `
+            -ExpectedButtonKey $targetButtonKey -CurrentButtonKey $freshButtonKey
+        if($targetStatus -ne 'OK'){Stop-Resolve $targetStatus 'INVOKE_MENU_ITEM'}
         $freshMenu=Get-ResolveAssociatedMenu $freshDocument
         if($null -eq $freshMenu){Stop-Resolve 'MENU_CONTROLS_STALE' 'INVOKE_MENU_ITEM'}
         $freshSnapshot=[pscustomobject]@{
@@ -335,6 +335,7 @@ try {
         }
         $freshStatus=Test-BridgeAssociatedMenuSnapshot $freshSnapshot
         if($freshStatus -ne 'OK'){Stop-Resolve $freshStatus 'INVOKE_MENU_ITEM'}
+        Assert-ResolveWindowStable -Baseline $windowSelection -At 'INVOKE_MENU_ITEM'
         $result.MenuItemInvoked=$true
         $freshMenu.Item.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()
 

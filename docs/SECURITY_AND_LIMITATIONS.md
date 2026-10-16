@@ -10,6 +10,7 @@ This is an experimental UI Automation proof of concept for a logged-in interacti
 - The main Desktop document and embedded browser document are separate surfaces. A browser URL proves only the browser route. `MainDesktopBound=false` must remain in all results unless separate durable binding evidence is established.
 - The menu path preserves one `Expand()` on the verified `Chat actions` button. The `Open on chatgpt.com` item is scoped to the verified document and `Chat actions` Menu ancestry, required to be unique/visible/enabled/invokable, and refreshed with the target before its single invocation.
 - The browser tab RuntimeId/window handle are ephemeral in-memory tokens only. The resolver checks one selected tab and visible-tab count around address reads and before success; they are not persistent identity.
+- The resolver enumerates top-level windows and accepts only a visible, enabled, ownerless ChatGPT window that is not a tool, child or popup window. It rejects incomplete enumeration and rechecks the chosen HWND/process before expansion and invocation. HWND/process evidence remains operation-local and is not conversation identity.
 - A parsed conversation URL must equal the independently supplied expected UUID. A title or parseable URL alone does not pass identity verification.
 - The corrected browser-document geometry requires a visible exact-title RootWebArea Document that contains the address bar horizontally, lies below it, and passes width bounds; exactly one must qualify. Geometry and title remain supporting UI evidence, not permanent main-panel binding.
 
@@ -29,7 +30,7 @@ Do not put private UUIDs or conversation URLs in source, arguments, environment 
 
 ## Not qualified or not implemented
 
-- Routing with multiple ChatGPT windows; duplicate, renamed, reordered, hidden or stale sidebar targets.
+- Live qualification of the top-level window enumerator; duplicate, renamed, reordered, hidden or stale sidebar targets; app/session lifecycle changes.
 - Restarts, updates, session lock/unlock, app lifecycle changes, accessibility tree changes and browser tab/focus races between checks.
 - General reliability or unattended operation beyond the one controlled M02-D.15P scenario.
 - Durable binding from the main Desktop panel/sidebar element to an immutable conversation ID.

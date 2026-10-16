@@ -5,6 +5,7 @@ $files=@(
     (Join-Path $root 'src/Bridge.Identity.ps1'),
     (Join-Path $root 'src/Bridge.TabGuard.ps1'),
     (Join-Path $root 'src/Bridge.Resolve.Helpers.ps1'),
+    (Join-Path $root 'src/Bridge.WindowGuard.ps1'),
     (Join-Path $root 'src/Bridge.Resolve.ps1'),
     (Join-Path $root 'src/Bridge.Resolve.Supervised.ps1'),
     $PSCommandPath
@@ -22,6 +23,7 @@ foreach($file in $files){
 . (Join-Path $root 'src/Bridge.Identity.ps1')
 . (Join-Path $root 'src/Bridge.Resolve.Helpers.ps1')
 . (Join-Path $root 'src/Bridge.TabGuard.ps1')
+. (Join-Path $root 'src/Bridge.WindowGuard.ps1')
 function Assert-SupervisedTest {
     param([bool]$IsTrue,[string]$Description)
     $script:checks++
@@ -46,6 +48,7 @@ Assert-SupervisedTest ($source.Contains('[switch]$PreflightOnly')) 'preflight mo
 Assert-SupervisedTest ($source.Contains('[switch]$ConfirmOpenInBrowser')) 'separate invocation mode available'
 Assert-SupervisedTest ($source.Contains('$confirmation -cne ''OPEN''')) 'exact live confirmation required'
 Assert-SupervisedTest ($source.Contains('Get-SupervisedBrowserBaseline -ExpectedId $expectedId')) 'selected browser precondition checked'
+Assert-SupervisedTest ($source.Contains('Get-BridgeCurrentWindowSelection')) 'launcher baseline uses unique top-level ChatGPT window selection'
 Assert-SupervisedTest ($source.Contains("'BROWSER_ALREADY_ON_EXPECTED_ID'")) 'same-ID browser baseline rejected'
 Assert-SupervisedTest ([regex]::Matches($source,'-OpenInBrowser').Count -eq 1) 'one live resolver call site'
 Assert-SupervisedTest ($source.Contains('MainDesktopBound = $false')) 'durable main identity remains unclaimed'

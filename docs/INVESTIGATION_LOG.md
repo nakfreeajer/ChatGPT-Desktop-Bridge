@@ -1,6 +1,6 @@
 # Investigation log
 
-This is the chronological index of project evidence through BRIDGE.M02-D.15P.CLOSE. The canonical failure → diagnosis → correction register is [FAILURE_AND_RECOVERY_REGISTER.md](FAILURE_AND_RECOVERY_REGISTER.md); this file keeps the timeline and current status concise to avoid duplicating that register.
+This is the chronological index of project evidence through BRIDGE.M02-E.1B.
 
 ## Chronology
 
@@ -16,10 +16,11 @@ This is the chronological index of project evidence through BRIDGE.M02-D.15P.CLO
 | M02-D.15J–15K | The resolver returned `BROWSER_DESTINATION_UNVERIFIED`; Cloudflare was reported during page loading. Source review found multiple pending/error paths, but did not establish Cloudflare as the cause. | [Post-invocation readiness](FAILURE_AND_RECOVERY_REGISTER.md#7-post-invocation-readiness-and-cloudflare-hypothesis) |
 | M02-D.15L–15N | A loaded ARM page failed the prior document geometry predicate. UIA measurements isolated the 60 px left-edge tolerance as the defect; horizontal containment replaced it. Offline total reached 167. | [Document geometry false negative](FAILURE_AND_RECOVERY_REGISTER.md#8-browser-document-geometry-false-negative-and-fix) |
 | M02-D.15O / 15P | Corrected document recognition passed a live read-only UIA check. One human-run supervised integrated qualification passed and activated an existing ARM browser tab. | [Live verification and integrated qualification](FAILURE_AND_RECOVERY_REGISTER.md#9-live-verification-and-integrated-qualification) |
+| M02-E.1A / E.1B | Source review identified that process count plus MainWindowHandle did not establish a unique top-level conversation window. A shared native enumerator, fail-closed window decision helper and pre-expansion/pre-invocation rechecks were added with offline negative coverage; no live window enumeration was performed. | [Window ambiguity hardening](FAILURE_AND_RECOVERY_REGISTER.md#10-top-level-window-ambiguity-and-offline-hardening) |
 
 ## Current qualification
 
-- Offline Windows PowerShell 5.1 suites: Identity **18/18**, TabGuard **20/20**, Resolve **87/87**, SupervisedLauncher **42/42**; **167/167** total.
+- Offline Windows PowerShell 5.1 suites: Identity **18/18**, TabGuard **20/20**, Resolve **97/97**, SupervisedLauncher **44/44**, WindowGuard **17/17**; **196/196** total.
 - M02-D.15P: `PASS_CONTROLLED_INTEGRATED` for one supervised run. The reported tab transition was `EXISTING_TAB_ACTIVATED`; two tabs were visible. The existing ARM tab became selected.
 - `MainDesktopBound=false`. The result is controlled browser identity correlation, not durable identity binding for the separate main Desktop panel.
 - Chat message insertion/submission is not implemented in the Bridge and was not authorized. Delivery remains `NOT_ASSESSED`.

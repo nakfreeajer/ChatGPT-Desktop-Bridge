@@ -2,17 +2,18 @@
 
 ## Offline qualification
 
-Use **Windows PowerShell 5.1** from the repository root. These four scripts exercise syntax, pure helpers and source guards; they do not access or change the ChatGPT Desktop UI.
+Use **Windows PowerShell 5.1** from the repository root. These five scripts exercise syntax, pure helpers and source guards; they do not access or change the ChatGPT Desktop UI.
 
 ~~~powershell
 .\tests\Identity.Offline.Tests.ps1
 .\tests\TabGuard.Offline.Tests.ps1
 .\tests\Resolve.Offline.Tests.ps1
 .\tests\SupervisedLauncher.Offline.Tests.ps1
+.\tests\WindowGuard.Offline.Tests.ps1
 git diff --check
 ~~~
 
-Latest verified output: Identity **18/18**, TabGuard **20/20**, Resolve **87/87**, SupervisedLauncher **42/42**; **167/167 assertions PASS**. Run each command separately if a per-suite result is needed.
+Latest verified output: Identity **18/18**, TabGuard **20/20**, Resolve **97/97**, SupervisedLauncher **44/44**, WindowGuard **17/17**; **196/196 assertions PASS**. Window decision tests are offline; native enumeration was not exercised against a live ChatGPT window.
 
 ## Supervised resolver launcher
 

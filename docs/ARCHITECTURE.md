@@ -12,6 +12,7 @@ It is **not** an Orchestrator, a messaging integration, or a production transpor
 |---|---|
 | `src/Bridge.Identity.ps1` | Pure UUID, URL, home-page and suggestion-target helpers. |
 | `src/Bridge.TabGuard.ps1` | Find exactly one selected browser TabItem near the address bar; use RuntimeId and visible-tab count as ephemeral within-run stability evidence. |
+| `src/Bridge.WindowGuard.ps1` | Enumerate top-level HWNDs, qualify one visible enabled ownerless non-tool/non-child/non-popup ChatGPT window, and retain its handle/process ID only for the current operation. |
 | `src/Bridge.Navigate.ps1` | Earlier experimental browser-only navigation prototype. Its optional path changes the URL and sends Enter to a verified autocomplete suggestion; global keyboard focus race remains. It does not write or submit a chat message. |
 | `src/Bridge.Resolve.Helpers.ps1` | Pure transition, menu snapshot, address polling and document-geometry helpers. |
 | `src/Bridge.Resolve.ps1` | Preflight by default; explicit `-OpenInBrowser` invokes one sidebar menu item and verifies the resulting browser route/document/tab. |
@@ -19,7 +20,7 @@ It is **not** an Orchestrator, a messaging integration, or a production transpor
 
 ## Resolver sequence
 
-1. Require one ChatGPT process window; identify one visible main `RootWebArea` Document with the exact requested title and one visible matching sidebar ListItem with one enabled `Chat actions` button. Duplicate/ambiguous targets fail closed.
+1. Require exactly one qualifying top-level ChatGPT conversation window. The selector excludes owned, tool, child and popup windows, and the resolver re-enumerates the same unique HWND/process immediately before menu expansion and menu-item invocation.
 2. Without `-OpenInBrowser`, return `PREFLIGHT_PASS`; no menu item is invoked.
 3. For the explicit path, read the currently selected browser conversation and retain a within-operation tab RuntimeId/count snapshot. Reject a baseline already matching the supplied expected UUID.
 4. Reconfirm the main document and sidebar target. Call `ExpandCollapsePattern.Expand()` once. Locate `Open on chatgpt.com` only within the verified document and require ancestry through a `Menu` named `Chat actions`; require one visible, enabled, invokable item and one popup container. Revalidate the row, button and item immediately before the one invocation.
@@ -33,8 +34,8 @@ The menu ancestry proves a document-scoped popup association in the observed UIA
 
 - M02-D.15P is **PASS_CONTROLLED_INTEGRATED** for one human-supervised run. The human-reported transition was `EXISTING_TAB_ACTIVATED` with two visible tabs; no new-tab behavior is assumed.
 - M02-D.15O separately verified the corrected browser-document predicate with read-only UIA.
-- Offline suites pass 167/167 assertions. Offline tests check helpers, syntax and source guards; they do not establish live reliability.
-- Multiple windows, duplicate/renamed/hidden conversations, lifecycle changes and focus/tab races remain unqualified.
+- Offline suites pass 196/196 assertions across five Windows PowerShell 5.1 suites. Window selection decisions are offline-qualified; native enumeration has not been live-qualified.
+- Native window enumeration against the live ChatGPT application, duplicate/renamed/hidden conversations, lifecycle changes and focus/tab races remain unqualified.
 
 ## Future delivery boundary
 

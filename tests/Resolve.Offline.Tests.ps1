@@ -5,6 +5,7 @@ $files=@(
     (Join-Path $root 'src/Bridge.Identity.ps1'),
     (Join-Path $root 'src/Bridge.TabGuard.ps1'),
     (Join-Path $root 'src/Bridge.Resolve.Helpers.ps1'),
+    (Join-Path $root 'src/Bridge.WindowGuard.ps1'),
     (Join-Path $root 'src/Bridge.Resolve.ps1'),
     $PSCommandPath
 )
@@ -21,6 +22,7 @@ foreach($file in $files){
 . (Join-Path $root 'src/Bridge.Resolve.Helpers.ps1')
 . (Join-Path $root 'src/Bridge.Identity.ps1')
 . (Join-Path $root 'src/Bridge.TabGuard.ps1')
+. (Join-Path $root 'src/Bridge.WindowGuard.ps1')
 function Assert-ResolveTest {
     param([bool]$IsTrue,[string]$Description)
     $script:checks++
@@ -157,16 +159,46 @@ $case=$menuSnapshot | Select-Object *; $case.ControlsFresh=$false
 Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_CONTROLS_STALE') 'stale controls rejected before invocation'
 $case=$menuSnapshot | Select-Object *; $case.MenuContainerCount=2
 Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_POPUP_AMBIGUOUS') 'duplicate popup containers rejected'
+$targetStatus=Get-BridgeSidebarTargetStatus -TargetRowCount 2 -ActionButtonCount 2 -TitleMatches $true
+Assert-ResolveTest ($targetStatus -eq 'SIDEBAR_TARGET_AMBIGUOUS') 'two visible matching sidebar rows rejected by production decision helper'
+$targetStatus=Get-BridgeSidebarTargetStatus -TargetRowCount 1 -ActionButtonCount 2 -TitleMatches $true
+Assert-ResolveTest ($targetStatus -eq 'CHAT_ACTIONS_AMBIGUOUS') 'two usable Chat actions buttons rejected by production decision helper'
+$targetStatus=Get-BridgeSidebarTargetStatus -TargetRowCount 0 -ActionButtonCount 0 -TitleMatches $false
+Assert-ResolveTest ($targetStatus -eq 'SIDEBAR_TARGET_AMBIGUOUS') 'renamed or disappeared target rejected at final revalidation'
+$targetStatus=Get-BridgeSidebarTargetStatus -TargetRowCount 1 -ActionButtonCount 1 -TitleMatches $false
+Assert-ResolveTest ($targetStatus -eq 'SIDEBAR_TARGET_CHANGED') 'renamed row title rejected at final revalidation'
+$targetStatus=Get-BridgeSidebarTargetStatus -TargetRowCount 1 -ActionButtonCount 1 -TitleMatches $true -RequireStableKeys `
+    -ExpectedRowKey 'row:1' -CurrentRowKey 'row:2' -ExpectedButtonKey 'button:1' -CurrentButtonKey 'button:1'
+Assert-ResolveTest ($targetStatus -eq 'MENU_TARGET_CHANGED') 'replaced sidebar row rejected at final revalidation'
+$targetStatus=Get-BridgeSidebarTargetStatus -TargetRowCount 1 -ActionButtonCount 1 -TitleMatches $true -RequireStableKeys `
+    -ExpectedRowKey 'row:1' -CurrentRowKey 'row:1' -ExpectedButtonKey 'button:1' -CurrentButtonKey 'button:2'
+Assert-ResolveTest ($targetStatus -eq 'MENU_TARGET_CHANGED') 'replaced Chat actions button rejected at final revalidation'
+$case=$menuSnapshot | Select-Object *; $case.ControlsFresh=$false
+Assert-ResolveTest ((Test-BridgeAssociatedMenuSnapshot $case) -eq 'MENU_CONTROLS_STALE') 'replaced menu item rejected at final revalidation'
+$resolveResult=New-BridgeResolveResult
+$resolveResult.BrowserIdentityVerified=$true
+Assert-ResolveTest (-not $resolveResult.MainDesktopBound) 'browser UUID verification cannot bind main Desktop identity'
+Assert-ResolveTest (-not $resolveResult.MenuItemInvoked -and -not $resolveResult.MenuStateMismatch -and
+    $resolveResult.MessageDeliveryStatus -eq 'NOT_ASSESSED') 'result defaults remain fail-closed and do not claim delivery'
 $source=[System.IO.File]::ReadAllText((Join-Path $root 'src/Bridge.Resolve.ps1'))
+Assert-ResolveTest (-not [regex]::IsMatch($source,'\$result\.MainDesktopBound\s*=\s*\$true')) 'resolver has no path that sets durable main identity true'
 Assert-ResolveTest ($source.Contains('if(-not $OpenInBrowser)')) 'preflight-by-default present'
 Assert-ResolveTest ($source.Contains("Status='PREFLIGHT_PASS'")) 'preflight terminal status present'
-Assert-ResolveTest ($source.Contains("Stop-Resolve 'SIDEBAR_TARGET_AMBIGUOUS'")) 'duplicate titles rejected'
+Assert-ResolveTest ($source.Contains("if(`$targetStatus -ne 'OK'){Stop-Resolve `$targetStatus 'SIDEBAR'}")) 'sidebar ambiguity status blocks resolver progress'
+Assert-ResolveTest ($source.Contains('Get-BridgeSidebarTargetStatus')) 'sidebar ambiguity and revalidation use tested decision helper'
+Assert-ResolveTest ($source.Contains('Assert-ResolveWindowStable -Baseline $windowSelection')) 'unique top-level window is revalidated before actions'
+$windowChecks=[regex]::Matches($source,'Assert-ResolveWindowStable -Baseline \$windowSelection')
+$expandCheckAt=$source.IndexOf("Assert-ResolveWindowStable -Baseline `$windowSelection -At 'EXPAND_MENU'")
+$expandAt=$source.IndexOf('$ep.Expand()')
+$invokeCheckAt=$source.IndexOf("Assert-ResolveWindowStable -Baseline `$windowSelection -At 'INVOKE_MENU_ITEM'")
+$invokeAt=$source.IndexOf('$freshMenu.Item.GetCurrentPattern')
+Assert-ResolveTest ($windowChecks.Count -eq 2 -and $expandCheckAt -ge 0 -and $expandAt -gt $expandCheckAt -and
+    $invokeCheckAt -ge 0 -and $invokeAt -gt $invokeCheckAt) 'window re-enumeration precedes expansion and the one menu invocation'
 Assert-ResolveTest ($source.Contains('if($menuStatus -ne ''OK'')')) 'associated-menu decision must pass before invocation'
 Assert-ResolveTest ($source.Contains('Get-ResolveAssociatedMenu $document')) 'menu item search is scoped to verified main document'
 Assert-ResolveTest ($source.Contains('$parent.Current.Name -ceq ''Chat actions''')) 'menu ancestry must include Chat actions'
 Assert-ResolveTest ($source.Contains('Get-ResolveAssociatedMenu $freshDocument')) 'menu and target revalidated immediately before invocation'
 Assert-ResolveTest ($source.Contains('GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke()')) 'only freshly revalidated item is invoked'
-Assert-ResolveTest ($source.Contains('MenuStateMismatch         = $false')) 'sanitized state mismatch field is present'
 $freshGateAt=$source.IndexOf("if(`$freshStatus -ne 'OK')")
 $invokeAt=$source.IndexOf('$freshMenu.Item.GetCurrentPattern')
 Assert-ResolveTest ($freshGateAt -ge 0 -and $invokeAt -gt $freshGateAt) 'failed ownership or identity checks precede and prevent invocation'
@@ -186,9 +218,6 @@ Assert-ResolveTest ([regex]::Matches($observationSource,'\.SetFocus\(').Count -e
 Assert-ResolveTest ($source.Contains("Stop-Resolve ([string]`$read.Status) 'TAB_OBSERVATION'")) 'resolver propagates bounded reader failure before menu action'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'TAB_CHANGED_DURING_VERIFICATION'")) 'tab stability check present'
 Assert-ResolveTest ($source.Contains("Stop-Resolve 'BROWSER_DESTINATION_CHANGED'")) 'final URL/tab check present'
-Assert-ResolveTest ($source.Contains('MainDesktopBound          = $false')) 'cannot claim durable main identity'
-Assert-ResolveTest ($source.Contains('MenuItemInvoked           = $false')) 'invocation status starts false'
-Assert-ResolveTest ($source.Contains("MessageDeliveryStatus     = 'NOT_ASSESSED'")) 'no acknowledgement invented'
 Assert-ResolveTest (-not $source.Contains('SendKeys')) 'no keyboard injection'
 Assert-ResolveTest (-not $source.Contains('SetValue(')) 'no composer writing'
 [pscustomobject]@{Milestone='BRIDGE.M02-D.13';Test='OfflineResolveAndSyntax';Result='PASS';Assertions=$checks} | ConvertTo-Json -Compress

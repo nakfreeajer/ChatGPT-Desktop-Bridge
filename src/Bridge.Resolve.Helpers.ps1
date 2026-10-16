@@ -1,6 +1,48 @@
 # BRIDGE.M02-D.13/15I: decision and coordination helpers for menu/browser identity.
 # UIA is accessed only through caller-supplied callbacks; RuntimeIds remain ephemeral.
 
+function New-BridgeResolveResult {
+    return [ordered]@{
+        Milestone                 = 'BRIDGE.M02-D.13'
+        Status                    = 'UNVERIFIED'
+        Stage                     = 'PREFLIGHT'
+        MainTitleVerified         = $false
+        SidebarCandidateUnique    = $false
+        MenuStateMismatch         = $false
+        MenuItemInvoked           = $false
+        BrowserIdentityVerified   = $false
+        BrowserDocumentVerified   = $false
+        SelectedTabVerified       = $false
+        TabSelectionStable        = $false
+        BrowserTabTransition      = 'NOT_ASSESSED'
+        VisibleBrowserTabs        = 0
+        MainDesktopBound          = $false
+        ComposerWriteAttempted    = $false
+        ChatSendButtonInvoked     = $false
+        MessageDeliveryStatus     = 'NOT_ASSESSED'
+    }
+}
+
+function Get-BridgeSidebarTargetStatus {
+    param(
+        [int]$TargetRowCount,[int]$ActionButtonCount,[bool]$TitleMatches,
+        [string]$ExpectedRowKey,[string]$CurrentRowKey,
+        [string]$ExpectedButtonKey,[string]$CurrentButtonKey,
+        [switch]$RequireStableKeys
+    )
+    if($TargetRowCount -ne 1){return 'SIDEBAR_TARGET_AMBIGUOUS'}
+    if($ActionButtonCount -ne 1){return 'CHAT_ACTIONS_AMBIGUOUS'}
+    if(-not $TitleMatches){return 'SIDEBAR_TARGET_CHANGED'}
+    if($RequireStableKeys){
+        if([string]::IsNullOrWhiteSpace($ExpectedRowKey) -or [string]::IsNullOrWhiteSpace($CurrentRowKey) -or
+            [string]::IsNullOrWhiteSpace($ExpectedButtonKey) -or [string]::IsNullOrWhiteSpace($CurrentButtonKey)){
+            return 'MENU_CONTROLS_STALE'
+        }
+        if($ExpectedRowKey -cne $CurrentRowKey -or $ExpectedButtonKey -cne $CurrentButtonKey){return 'MENU_TARGET_CHANGED'}
+    }
+    return 'OK'
+}
+
 function Get-BridgeTabTransition {
     param($Before, $After)
     if ($null -eq $After -or [string]::IsNullOrWhiteSpace([string]$After.RuntimeKey)) {

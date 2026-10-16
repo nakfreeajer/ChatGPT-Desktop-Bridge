@@ -74,10 +74,11 @@ function Get-SupervisedBrowserBaseline {
     . (Join-Path $PSScriptRoot 'Bridge.Identity.ps1')
     . (Join-Path $PSScriptRoot 'Bridge.TabGuard.ps1')
     . (Join-Path $PSScriptRoot 'Bridge.Resolve.Helpers.ps1')
+    . (Join-Path $PSScriptRoot 'Bridge.WindowGuard.ps1')
 
-    $windows = @(Get-Process ChatGPT -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 })
-    if ($windows.Count -ne 1) { Stop-Supervised 'BLOCKED' 'WINDOW_NOT_UNIQUE' }
-    $handle = [IntPtr]$windows[0].MainWindowHandle
+    $windowSelection=Get-BridgeCurrentWindowSelection
+    if($windowSelection.Status -ne 'OK'){Stop-Supervised 'BLOCKED' ([string]$windowSelection.Status)}
+    $handle = [IntPtr]$windowSelection.Window.Handle
     $root = [System.Windows.Automation.AutomationElement]::FromHandle($handle)
     if ($null -eq $root) { Stop-Supervised 'BLOCKED' 'WINDOW_UNAVAILABLE' }
 

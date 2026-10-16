@@ -5,6 +5,7 @@
 ## What is implemented
 
 - Pure identity helpers and a selected embedded-browser tab stability guard.
+- A top-level window guard that selects one visible, enabled, ownerless, non-tool, non-child, non-popup ChatGPT conversation window and rechecks it before resolver actions.
 - An earlier browser-only navigation experiment with an explicit keyboard-risk opt-in.
 - A resolver that defaults to read-only preflight. Its separate `-OpenInBrowser` path uses the verified Desktop sidebar menu and checks the embedded-browser conversation UUID, document, tab stability and observed tab transition.
 - An interactive wrapper that reads the expected UUID through a hidden secure prompt, calls the resolver in-process, and requires explicit `OPEN` before the single menu invocation.
@@ -22,13 +23,14 @@ Run from Windows PowerShell 5.1 at the repository root:
 .\tests\TabGuard.Offline.Tests.ps1
 .\tests\Resolve.Offline.Tests.ps1
 .\tests\SupervisedLauncher.Offline.Tests.ps1
+.\tests\WindowGuard.Offline.Tests.ps1
 ~~~
 
-Latest baseline: Identity 18/18, TabGuard 20/20, Resolve 87/87, SupervisedLauncher 42/42 — **167/167 assertions PASS**. Offline tests do not interact with ChatGPT Desktop.
+Latest offline qualification: Identity 18/18, TabGuard 20/20, Resolve 97/97, SupervisedLauncher 44/44, WindowGuard 17/17 — **196/196 assertions PASS**. Offline tests do not interact with ChatGPT Desktop or live-qualify native window enumeration.
 
 ## Documentation
 
-- [Failure and recovery register](docs/FAILURE_AND_RECOVERY_REGISTER.md) — canonical detailed chronology through M02-D.15P, including failed experiments, causes, corrections and evidence limits.
+- [Failure and recovery register](docs/FAILURE_AND_RECOVERY_REGISTER.md) — canonical detailed chronology through M02-E.1B, including failures, corrections and evidence limits.
 - [Investigation log](docs/INVESTIGATION_LOG.md) — concise timeline index.
 - [Verified findings](docs/VERIFIED_FINDINGS.md) — evidence classifications and current status.
 - [Architecture](docs/ARCHITECTURE.md) — current components and resolver control flow.
@@ -39,6 +41,6 @@ Latest baseline: Identity 18/18, TabGuard 20/20, Resolve 87/87, SupervisedLaunch
 
 ## Safety boundary
 
-The main Desktop UI and embedded browser are separate surfaces. Titles are mutable and may be duplicated; RuntimeIds and window handles are ephemeral. A parsed browser URL is not proof of permanent main-panel identity. Multiple windows, duplicate or renamed conversations, lifecycle changes and focus/tab races remain unqualified. Cloudflare was reported during one earlier run, but its role was not established; the Bridge does not detect, bypass or automate challenge verification.
+The main Desktop UI and embedded browser are separate surfaces. Titles are mutable and may be duplicated; RuntimeIds and window handles are ephemeral. The top-level window selector has offline decision coverage but has not been live-qualified against ChatGPT Desktop. A parsed browser URL is not proof of permanent main-panel identity. Duplicate or renamed conversations, lifecycle changes and focus/tab races remain unqualified. Cloudflare was reported during one earlier run, but its role was not established; the Bridge does not detect, bypass or automate challenge verification.
 
 Do not submit a message or run a live launcher mode without separate human authorization and supervision. Never put private IDs, conversation URLs, credentials or chat content in source, command lines, environment variables, logs, tests or reports.
