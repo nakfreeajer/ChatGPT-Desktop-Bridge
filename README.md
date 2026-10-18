@@ -33,6 +33,7 @@ Latest offline qualification: Identity 18/18, TabGuard 20/20, Resolve 97/97, Sup
 
 ## Documentation
 
+- [Complete UIA investigation and external AI review](docs/CHATGPT_DESKTOP_BRIDGE_UIA_INVESTIGATION.md) — 2026-10-18 evidence dossier of later local-only milestones, live successes and blockers; **not** a claim that the unpublished local implementation is present on GitHub main.
 - [Failure and recovery register](docs/FAILURE_AND_RECOVERY_REGISTER.md) - canonical detailed chronology through BRIDGE.MAIN.1E.FIX1, including failures, corrections and evidence limits.
 - [Investigation log](docs/INVESTIGATION_LOG.md) — concise timeline index.
 - [Verified findings](docs/VERIFIED_FINDINGS.md) — evidence classifications and current status.
